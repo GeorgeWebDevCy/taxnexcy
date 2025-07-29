@@ -17,6 +17,17 @@ This plugin integrates FluentForms with WooCommerce and JCC to create orders and
 1. Upload the `taxnexcy` plugin folder to the `/wp-content/plugins/` directory.
 2. Activate the plugin through the 'Plugins' menu in WordPress.
 
+== Automatic Updates ==
+Taxnex Cyprus checks for updates on its GitHub repository. If the repository
+is private you must provide a GitHub token so the updater can access the
+latest release information.
+
+Define the token in your `wp-config.php` file:
+
+`define( 'TAXNEXCY_GITHUB_TOKEN', 'your-personal-access-token' );`
+
+Alternatively, set an environment variable named `TAXNEXCY_GITHUB_TOKEN`.
+
 == Changelog ==
 = 1.3.0 =
 * Bump plugin version.

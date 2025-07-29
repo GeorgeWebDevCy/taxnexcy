@@ -69,8 +69,8 @@ class Taxnexcy {
 	public function __construct() {
 		if ( defined( 'TAXNEXCY_VERSION' ) ) {
 			$this->version = TAXNEXCY_VERSION;
-		} else {
-			$this->version = '1.0.0';
+               } else {
+                       $this->version = '1.0.1';
 		}
 		$this->plugin_name = 'taxnexcy';
 

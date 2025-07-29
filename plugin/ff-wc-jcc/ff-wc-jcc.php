@@ -15,7 +15,7 @@ require_once __DIR__ . '/../../plugin-update-checker/plugin-update-checker.php';
 use YahnisElsts\PluginUpdateChecker\v5\PucFactory;
 
 $ff_wc_jcc_update_checker = PucFactory::buildUpdateChecker(
-    'https://github.com/user-name/repo-name/',
+    'https://github.com/GeorgeWebDevCy/taxnexcy/',
     __FILE__,
     'ff-wc-jcc'
 );

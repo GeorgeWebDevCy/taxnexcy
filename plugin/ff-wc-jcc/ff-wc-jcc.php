@@ -10,6 +10,17 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit; // Exit if accessed directly.
 }
 
+// Include the update checker library and configure updates from GitHub.
+require_once __DIR__ . '/../../plugin-update-checker/plugin-update-checker.php';
+use YahnisElsts\PluginUpdateChecker\v5\PucFactory;
+
+$ff_wc_jcc_update_checker = PucFactory::buildUpdateChecker(
+    'https://github.com/user-name/repo-name/',
+    __FILE__,
+    'ff-wc-jcc'
+);
+$ff_wc_jcc_update_checker->setBranch( 'main' );
+
 class FF_WC_JCC_Integration {
     /**
      * Constructor.
@@ -66,3 +77,4 @@ class FF_WC_JCC_Integration {
 }
 
 new FF_WC_JCC_Integration();
+

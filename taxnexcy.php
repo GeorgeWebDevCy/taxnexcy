@@ -64,6 +64,17 @@ register_deactivation_hook( __FILE__, 'deactivate_taxnexcy' );
  */
 require plugin_dir_path( __FILE__ ) . 'includes/class-taxnexcy.php';
 
+// Load the plugin update checker and configure updates from GitHub.
+require_once plugin_dir_path( __FILE__ ) . 'plugin-update-checker/plugin-update-checker/plugin-update-checker.php';
+use YahnisElsts\PluginUpdateChecker\v5\PucFactory;
+
+$taxnexcy_update_checker = PucFactory::buildUpdateChecker(
+    'https://github.com/GeorgeWebDevCy/taxnexcy/',
+    __FILE__,
+    'taxnexcy'
+);
+$taxnexcy_update_checker->setBranch('main');
+
 /**
  * Begins execution of the plugin.
  *

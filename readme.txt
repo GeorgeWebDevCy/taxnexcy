@@ -4,7 +4,7 @@ Donate link: https://georgenicolaou.me/
 Tags: fluentforms, woocommerce, jcc
 Requires at least: 5.0
 Tested up to: 6.5
-Stable tag: 1.2.0
+Stable tag: 1.3.0
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -18,6 +18,8 @@ This plugin integrates FluentForms with WooCommerce and JCC to create orders and
 2. Activate the plugin through the 'Plugins' menu in WordPress.
 
 == Changelog ==
+= 1.3.0 =
+* Bump plugin version.
 = 1.2.0 =
 * Store Fluent Forms submission data in the WooCommerce order and show it in order emails.
 = 1.1.0 =

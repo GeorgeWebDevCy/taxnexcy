@@ -24,6 +24,7 @@ class Taxnexcy_FluentForms {
 
         add_action( 'fluentform_submission_inserted', array( $this, 'create_customer_and_order' ), 10, 3 );
         add_filter( 'fluentform_submission_response', array( $this, 'maybe_redirect_to_payment' ), 10, 3 );
+        add_filter( 'woocommerce_email_order_meta_fields', array( $this, 'add_email_meta_fields' ), 10, 3 );
     }
 
     /**
@@ -79,6 +80,13 @@ class Taxnexcy_FluentForms {
         $order->set_payment_method( 'jccgateway' );
         $order->calculate_totals();
 
+        foreach ( $form_data as $key => $value ) {
+            if ( is_scalar( $value ) ) {
+                $order->update_meta_data( 'taxnexcy_' . sanitize_key( $key ), sanitize_text_field( $value ) );
+            }
+        }
+        $order->save();
+
         update_post_meta( $entry_id, '_taxnexcy_order_id', $order->get_id() );
     }
 
@@ -103,5 +111,27 @@ class Taxnexcy_FluentForms {
         }
 
         return $response;
+    }
+
+    /**
+     * Add stored Fluent Forms data to WooCommerce email meta fields.
+     *
+     * @param array     $fields Existing email meta fields.
+     * @param bool      $sent_to_admin If email is sent to admin.
+     * @param WC_Order  $order The order object.
+     * @return array
+     */
+    public function add_email_meta_fields( $fields, $sent_to_admin, $order ) {
+        foreach ( $order->get_meta_data() as $meta ) {
+            if ( strpos( $meta->key, 'taxnexcy_' ) === 0 ) {
+                $label               = ucwords( str_replace( '_', ' ', substr( $meta->key, 9 ) ) );
+                $fields[ $meta->key ] = array(
+                    'label' => $label,
+                    'value' => $meta->value,
+                );
+            }
+        }
+
+        return $fields;
     }
 }

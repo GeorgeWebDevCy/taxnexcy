@@ -70,7 +70,7 @@ class Taxnexcy {
 		if ( defined( 'TAXNEXCY_VERSION' ) ) {
 			$this->version = TAXNEXCY_VERSION;
                } else {
-                       $this->version = '1.0.1';
+                       $this->version = '1.0.2';
 		}
 		$this->plugin_name = 'taxnexcy';
 

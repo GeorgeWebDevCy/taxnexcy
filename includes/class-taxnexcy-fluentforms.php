@@ -77,11 +77,11 @@ class Taxnexcy_FluentForms {
             return;
         }
 
-        $product_id = apply_filters( 'taxnexcy_product_id', 0 );
+        $product_id = apply_filters( 'taxnexcy_product_id', 0, $form, $form_data );
         $product    = wc_get_product( $product_id );
 
         if ( ! $product ) {
-            Taxnexcy_Logger::log( 'Product not found' );
+            Taxnexcy_Logger::log( 'Product not found for form ' . ( $form['id'] ?? 'unknown' ) . ' (ID ' . $product_id . ')' );
             return;
         }
 

@@ -16,7 +16,7 @@
  * Plugin Name:       Taxnex Cyprus
  * Plugin URI:        https://georgenicolaou.me/taxnexcy
  * Description:       Creates WooCommerce user and order from FluentForms submission and redirects to JCC payment
- * Version:           1.4.0
+ * Version:           1.5.0
  * Author:            George Nicolaou
  * Author URI:        https://georgenicolaou.me/
  * License:           GPL-2.0+
@@ -35,7 +35,16 @@ if ( ! defined( 'WPINC' ) ) {
  * Start at version 1.0.0 and use SemVer - https://semver.org
  * Rename this for your plugin and update it as you release new versions.
  */
-define( 'TAXNEXCY_VERSION', '1.4.0' );
+define( 'TAXNEXCY_VERSION', '1.5.0' );
+
+/**
+ * Map Fluent Forms IDs to WooCommerce product IDs.
+ * Example:
+ * define( 'TAXNEXCY_FORM_PRODUCTS', array( 10 => 123, 20 => 456 ) );
+ */
+if ( ! defined( 'TAXNEXCY_FORM_PRODUCTS' ) ) {
+    define( 'TAXNEXCY_FORM_PRODUCTS', array() );
+}
 
 /**
  * The code that runs during plugin activation.
@@ -80,6 +89,23 @@ $token = defined('TAXNEXCY_GITHUB_TOKEN') ? TAXNEXCY_GITHUB_TOKEN : getenv('TAXN
 if ( ! empty( $token ) ) {
     $taxnexcy_update_checker->setAuthentication( $token );
 }
+
+/**
+ * Resolve product ID for a given Fluent Forms submission.
+ *
+ * @param int   $default   Default product ID.
+ * @param array $form      Form settings.
+ * @param array $form_data Submitted form data.
+ * @return int Product ID.
+ */
+function taxnexcy_product_mapping( $default, $form, $form_data ) {
+    $form_id = is_array( $form ) && isset( $form['id'] ) ? intval( $form['id'] ) : 0;
+    if ( $form_id && isset( TAXNEXCY_FORM_PRODUCTS[ $form_id ] ) ) {
+        return intval( TAXNEXCY_FORM_PRODUCTS[ $form_id ] );
+    }
+    return $default;
+}
+add_filter( 'taxnexcy_product_id', 'taxnexcy_product_mapping', 10, 3 );
 
 /**
  * Begins execution of the plugin.

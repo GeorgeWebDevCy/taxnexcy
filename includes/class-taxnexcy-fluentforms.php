@@ -92,7 +92,19 @@ class Taxnexcy_FluentForms {
         $order = wc_create_order( array( 'customer_id' => $user_id ) );
         Taxnexcy_Logger::log( 'Created order ' . $order->get_id() . ' for user ' . $user_id );
         $order->add_product( $product, 1 );
-        $order->set_payment_method( 'jccgateway' );
+
+        $available_gateways = WC()->payment_gateways->get_available_payment_gateways();
+        if ( isset( $available_gateways['jccgateway'] ) ) {
+            $order->set_payment_method( 'jccgateway' );
+            Taxnexcy_Logger::log( 'JCC gateway detected and set as payment method' );
+        } elseif ( $available_gateways ) {
+            $fallback = key( $available_gateways );
+            $order->set_payment_method( $fallback );
+            Taxnexcy_Logger::log( 'JCC gateway not available, using ' . $fallback . ' as fallback' );
+        } else {
+            Taxnexcy_Logger::log( 'No payment gateways available' );
+        }
+
         $order->calculate_totals();
 
         $labels = array();

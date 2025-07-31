@@ -159,6 +159,16 @@ class Taxnexcy_FluentForms {
 
         update_post_meta( $entry_id, '_taxnexcy_order_id', $order->get_id() );
         Taxnexcy_Logger::log( 'Stored order ID in entry meta' );
+
+        // Log the user in so they can pay for their order immediately.
+        if ( ! is_user_logged_in() ) {
+            wp_set_current_user( $user_id );
+            wp_set_auth_cookie( $user_id );
+            if ( function_exists( 'wc_set_customer_auth_cookie' ) ) {
+                wc_set_customer_auth_cookie( $user_id );
+            }
+            Taxnexcy_Logger::log( 'Logged in user ' . $user_id );
+        }
     }
 
     /**

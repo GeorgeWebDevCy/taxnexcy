@@ -100,13 +100,31 @@ class Taxnexcy_Admin {
         }
 
         /**
-         * Add the Taxnexcy log page under Tools.
+         * Register Taxnexcy admin menu and subpages.
          */
-        public function add_menu_page() {
+        public function add_admin_menu() {
+                add_menu_page(
+                        'Taxnexcy',
+                        'Taxnexcy',
+                        'manage_options',
+                        'taxnexcy',
+                        array( $this, 'render_settings_page' ),
+                        'dashicons-cart'
+                );
+
                 add_submenu_page(
-                        'tools.php',
-                        'Taxnexcy Log',
-                        'Taxnexcy Log',
+                        'taxnexcy',
+                        'Form Product Mapping',
+                        'Form Product Mapping',
+                        'manage_options',
+                        'taxnexcy',
+                        array( $this, 'render_settings_page' )
+                );
+
+                add_submenu_page(
+                        'taxnexcy',
+                        'Log',
+                        'Log',
                         'manage_options',
                         'taxnexcy-log',
                         array( $this, 'render_log_page' )
@@ -126,6 +144,18 @@ class Taxnexcy_Admin {
         }
 
         /**
+         * Render the settings page.
+         */
+        public function render_settings_page() {
+                if ( ! current_user_can( 'manage_options' ) ) {
+                        return;
+                }
+
+                $mappings = get_option( TAXNEXCY_FORM_PRODUCTS_OPTION, array() );
+                include plugin_dir_path( __FILE__ ) . 'partials/taxnexcy-settings-page.php';
+        }
+
+        /**
          * Handle clearing the log.
          */
         public function handle_clear_log() {
@@ -135,7 +165,34 @@ class Taxnexcy_Admin {
 
                 check_admin_referer( 'taxnexcy_clear_log' );
                 Taxnexcy_Logger::clear();
-                wp_redirect( admin_url( 'tools.php?page=taxnexcy-log' ) );
+                wp_redirect( admin_url( 'admin.php?page=taxnexcy-log' ) );
+                exit;
+        }
+
+        /**
+         * Handle saving form to product mappings.
+         */
+        public function handle_save_mappings() {
+                if ( ! current_user_can( 'manage_options' ) ) {
+                        wp_die( 'Forbidden' );
+                }
+
+                check_admin_referer( 'taxnexcy_save_mappings' );
+
+                $forms    = isset( $_POST['taxnexcy_forms'] ) ? array_map( 'intval', (array) $_POST['taxnexcy_forms'] ) : array();
+                $products = isset( $_POST['taxnexcy_products'] ) ? array_map( 'intval', (array) $_POST['taxnexcy_products'] ) : array();
+
+                $mappings = array();
+                foreach ( $forms as $index => $form_id ) {
+                        $product_id = $products[ $index ] ?? 0;
+                        if ( $form_id && $product_id ) {
+                                $mappings[ $form_id ] = $product_id;
+                        }
+                }
+
+                update_option( TAXNEXCY_FORM_PRODUCTS_OPTION, $mappings );
+
+                wp_redirect( admin_url( 'admin.php?page=taxnexcy' ) );
                 exit;
         }
 

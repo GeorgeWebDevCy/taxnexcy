@@ -26,6 +26,7 @@ class Taxnexcy_FluentForms {
         add_action( 'fluentform_submission_inserted', array( $this, 'create_customer_and_order' ), 10, 3 );
         add_filter( 'fluentform_submission_response', array( $this, 'maybe_redirect_to_payment' ), 10, 3 );
         add_filter( 'woocommerce_email_order_meta_fields', array( $this, 'add_email_meta_fields' ), 10, 3 );
+        add_action( 'woocommerce_admin_order_data_after_order_details', array( $this, 'display_admin_meta_fields' ) );
     }
 
     /**
@@ -150,5 +151,22 @@ class Taxnexcy_FluentForms {
         }
 
         return $fields;
+    }
+
+    /**
+     * Display Fluent Forms data in the WooCommerce admin order screen.
+     *
+     * @param WC_Order $order The order object.
+     */
+    public function display_admin_meta_fields( $order ) {
+        echo '<div class="order_data_column">';
+        echo '<h4>' . esc_html__( 'Fluent Forms Answers', 'taxnexcy' ) . '</h4>';
+        foreach ( $order->get_meta_data() as $meta ) {
+            if ( strpos( $meta->key, 'taxnexcy_' ) === 0 ) {
+                $label = ucwords( str_replace( '_', ' ', substr( $meta->key, 9 ) ) );
+                printf( '<p><strong>%s:</strong> %s</p>', esc_html( $label ), esc_html( $meta->value ) );
+            }
+        }
+        echo '</div>';
     }
 }

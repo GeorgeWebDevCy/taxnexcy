@@ -4,7 +4,7 @@ Donate link: https://georgenicolaou.me/
 Tags: fluentforms, woocommerce, jcc
 Requires at least: 5.0
 Tested up to: 6.5
-Stable tag: 1.7.12
+Stable tag: 1.7.13
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -29,6 +29,9 @@ Define the token in your `wp-config.php` file:
 Alternatively, set an environment variable named `TAXNEXCY_GITHUB_TOKEN`.
 
 == Changelog ==
+= 1.7.13 =
+* Document how question/answer order comes from Fluent Forms {all_data}.
+
 = 1.7.12 =
 * Clarify plugin description and bump version.
 

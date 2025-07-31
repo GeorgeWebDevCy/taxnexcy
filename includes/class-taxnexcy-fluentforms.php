@@ -151,19 +151,32 @@ class Taxnexcy_FluentForms {
      * @return array
      */
     public function maybe_redirect_to_payment( $response, $form_data, $form ) {
+        Taxnexcy_Logger::log( 'maybe_redirect_to_payment triggered. Raw data: ' . wp_json_encode( $form_data ) );
+
         $entry_id = $form_data['entry_id'] ?? 0;
         $order_id = $entry_id ? (int) get_post_meta( $entry_id, '_taxnexcy_order_id', true ) : 0;
 
+        Taxnexcy_Logger::log( 'Checking redirect for entry ' . $entry_id . ' with order ID ' . $order_id );
+
         if ( $order_id ) {
-            $order   = wc_get_order( $order_id );
-            $url     = $order ? $order->get_checkout_payment_url() : '';
-            if ( $url ) {
-                $response['redirect_to'] = $url;
-                Taxnexcy_Logger::log( 'Redirecting to payment page for order ' . $order_id );
+            $order = wc_get_order( $order_id );
+            if ( $order ) {
+                $url = $order->get_checkout_payment_url();
+                Taxnexcy_Logger::log( 'Checkout URL: ' . $url );
+                if ( $url ) {
+                    $response['redirect_to'] = $url;
+                    Taxnexcy_Logger::log( 'Redirecting to payment page for order ' . $order_id );
+                } else {
+                    Taxnexcy_Logger::log( 'Checkout URL empty for order ' . $order_id );
+                }
+            } else {
+                Taxnexcy_Logger::log( 'Could not load order ' . $order_id );
             }
         } else {
             Taxnexcy_Logger::log( 'No order found for entry ' . $entry_id );
         }
+
+        Taxnexcy_Logger::log( 'Response after redirect check: ' . wp_json_encode( $response ) );
 
         return $response;
     }

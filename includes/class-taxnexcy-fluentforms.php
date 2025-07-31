@@ -104,13 +104,22 @@ class Taxnexcy_FluentForms {
         }
 
         foreach ( $form_data as $key => $value ) {
-            if ( is_scalar( $value ) ) {
-                $sanitized_key = sanitize_key( $key );
-                $order->update_meta_data( 'taxnexcy_' . $sanitized_key, sanitize_text_field( $value ) );
+            if ( ! is_scalar( $value ) ) {
+                continue;
+            }
 
-                if ( isset( $labels[ $sanitized_key ] ) ) {
-                    $order->update_meta_data( 'taxnexcy_label_' . $sanitized_key, $labels[ $sanitized_key ] );
-                }
+            $sanitized_key = sanitize_key( $key );
+
+            // Skip internal Fluent Forms fields like nonces or referrers.
+            $skip_fields = array( 'fluentform_nonce', 'fluentform_id', 'wp_http_referer' );
+            if ( in_array( $sanitized_key, $skip_fields, true ) || preg_match( '/^fluentform_\d+_fluentformnonce$/', $sanitized_key ) ) {
+                continue;
+            }
+
+            $order->update_meta_data( 'taxnexcy_' . $sanitized_key, sanitize_text_field( $value ) );
+
+            if ( isset( $labels[ $sanitized_key ] ) ) {
+                $order->update_meta_data( 'taxnexcy_label_' . $sanitized_key, $labels[ $sanitized_key ] );
             }
         }
         $order->save();
@@ -156,21 +165,29 @@ class Taxnexcy_FluentForms {
         $fields = array();
         foreach ( $order->get_meta_data() as $meta ) {
             // Only Taxnexcy fields and skip the stored labels themselves.
-            if ( strpos( $meta->key, 'taxnexcy_' ) === 0 && strpos( $meta->key, 'taxnexcy_label_' ) !== 0 ) {
-                $slug  = substr( $meta->key, 9 );
-                $label = $order->get_meta( 'taxnexcy_label_' . $slug, true );
-                if ( ! $label ) {
-                    $label = ucwords( str_replace( '_', ' ', $slug ) );
-                }
-                if ( in_array( $slug, array( 'wp_http_referer', 'fluentform_' . $order->get_id() . '_fluentformnonce' ), true ) ) {
-                    continue;
-                }
-                $fields[] = array(
-                    'label' => $label,
-                    'value' => $meta->value,
-                );
+            if ( strpos( $meta->key, 'taxnexcy_' ) !== 0 || strpos( $meta->key, 'taxnexcy_label_' ) === 0 ) {
+                continue;
             }
+
+            $slug  = substr( $meta->key, 9 );
+            $label = $order->get_meta( 'taxnexcy_label_' . $slug, true );
+
+            // Skip common hidden Fluent Forms fields.
+            if ( in_array( $slug, array( 'wp_http_referer', 'fluentform_nonce', 'fluentform_id' ), true ) ||
+                preg_match( '/^fluentform_\d+_fluentformnonce$/', $slug ) ) {
+                continue;
+            }
+
+            if ( ! $label ) {
+                $label = ucwords( str_replace( '_', ' ', $slug ) );
+            }
+
+            $fields[] = array(
+                'label' => $label,
+                'value' => $meta->value,
+            );
         }
+
         return $fields;
     }
 

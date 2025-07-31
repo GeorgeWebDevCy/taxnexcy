@@ -4,7 +4,7 @@ Donate link: https://georgenicolaou.me/
 Tags: fluentforms, woocommerce, jcc
 Requires at least: 5.0
 Tested up to: 6.5
-Stable tag: 1.4.0
+Stable tag: 1.5.0
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -29,6 +29,8 @@ Define the token in your `wp-config.php` file:
 Alternatively, set an environment variable named `TAXNEXCY_GITHUB_TOKEN`.
 
 == Changelog ==
+= 1.5.0 =
+* Map individual FluentForms to specific WooCommerce products using the `TAXNEXCY_FORM_PRODUCTS` constant.
 = 1.4.0 =
 * Add admin log viewer and verbose logging throughout the plugin.
 = 1.3.1 =

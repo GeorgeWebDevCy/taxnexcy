@@ -38,6 +38,8 @@ class Taxnexcy_FluentForms {
      */
     public function create_customer_and_order( $entry_id, $form_data, $form ) {
         Taxnexcy_Logger::log( 'Processing submission entry ' . $entry_id );
+        Taxnexcy_Logger::log( 'Submission data: ' . wp_json_encode( $form_data ) );
+        Taxnexcy_Logger::log( 'Form settings: ' . wp_json_encode( $form ) );
         if ( ! function_exists( 'wc_create_new_customer' ) ) {
             Taxnexcy_Logger::log( 'WooCommerce functions unavailable' );
             return;

@@ -175,9 +175,14 @@ class Taxnexcy_FluentForms {
             if ( $order ) {
                 $url = $order->get_checkout_payment_url();
                 Taxnexcy_Logger::log( 'Checkout URL: ' . $url );
-                if ( $url ) {
+                $should_redirect = ! ( defined( 'TAXNEXCY_DISABLE_REDIRECT' ) && TAXNEXCY_DISABLE_REDIRECT );
+                $should_redirect = apply_filters( 'taxnexcy_redirect_to_payment', $should_redirect, $order_id );
+
+                if ( $url && $should_redirect ) {
                     $response['redirect_to'] = $url;
                     Taxnexcy_Logger::log( 'Redirecting to payment page for order ' . $order_id );
+                } elseif ( ! $should_redirect ) {
+                    Taxnexcy_Logger::log( 'Redirect disabled for order ' . $order_id );
                 } else {
                     Taxnexcy_Logger::log( 'Checkout URL empty for order ' . $order_id );
                 }

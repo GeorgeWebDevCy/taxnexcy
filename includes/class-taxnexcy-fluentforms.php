@@ -25,8 +25,8 @@ class Taxnexcy_FluentForms {
 
         add_action( 'fluentform_submission_inserted', array( $this, 'create_customer_and_order' ), 10, 3 );
         add_filter( 'fluentform_submission_response', array( $this, 'maybe_redirect_to_payment' ), 10, 3 );
-        add_filter( 'woocommerce_email_order_meta_fields', array( $this, 'add_email_meta_fields' ), 10, 3 );
-        add_action( 'woocommerce_admin_order_data_after_order_details', array( $this, 'display_admin_meta_fields' ) );
+        add_action( 'woocommerce_email_order_meta', array( $this, 'display_email_meta_table' ), 10, 4 );
+        add_action( 'woocommerce_admin_order_data_after_order_details', array( $this, 'display_admin_meta_fields' ), 15 );
     }
 
     /**
@@ -147,30 +147,62 @@ class Taxnexcy_FluentForms {
     }
 
     /**
-     * Add stored Fluent Forms data to WooCommerce email meta fields.
+     * Build an array of [label, value] pairs from Taxnexcy order meta.
      *
-     * @param array     $fields Existing email meta fields.
-     * @param bool      $sent_to_admin If email is sent to admin.
-     * @param WC_Order  $order The order object.
+     * @param WC_Order $order Order object.
      * @return array
      */
-    public function add_email_meta_fields( $fields, $sent_to_admin, $order ) {
-        Taxnexcy_Logger::log( 'Adding email meta fields for order ' . $order->get_id() );
+    public function get_ff_fields( $order ) {
+        $fields = array();
         foreach ( $order->get_meta_data() as $meta ) {
+            // Only Taxnexcy fields and skip the stored labels themselves.
             if ( strpos( $meta->key, 'taxnexcy_' ) === 0 && strpos( $meta->key, 'taxnexcy_label_' ) !== 0 ) {
                 $slug  = substr( $meta->key, 9 );
                 $label = $order->get_meta( 'taxnexcy_label_' . $slug, true );
                 if ( ! $label ) {
                     $label = ucwords( str_replace( '_', ' ', $slug ) );
                 }
-                $fields[ $meta->key ] = array(
+                if ( in_array( $slug, array( 'wp_http_referer', 'fluentform_' . $order->get_id() . '_fluentformnonce' ), true ) ) {
+                    continue;
+                }
+                $fields[] = array(
                     'label' => $label,
                     'value' => $meta->value,
                 );
             }
         }
-
         return $fields;
+    }
+
+    /**
+     * Output Fluent Form data as a table in WooCommerce emails.
+     *
+     * @param WC_Order $order      The order object.
+     * @param bool     $sent_to_admin If email is sent to admin.
+     * @param bool     $plain_text Whether the email is plain text.
+     * @param object   $email      Email object.
+     */
+    public function display_email_meta_table( $order, $sent_to_admin, $plain_text, $email ) {
+        $fields = $this->get_ff_fields( $order );
+        if ( ! $fields ) {
+            return;
+        }
+
+        if ( ! $plain_text ) {
+            echo '<h3>' . esc_html__( 'Fluent Forms Answers', 'taxnexcy' ) . '</h3>';
+            echo '<table cellspacing="0" cellpadding="6" style="width:100%; border:1px solid #eee;" border="1">';
+            echo '<thead><tr><th style="text-align:left;">' . esc_html__( 'Question', 'taxnexcy' ) . '</th><th style="text-align:left;">' . esc_html__( 'Answer', 'taxnexcy' ) . '</th></tr></thead>';
+            echo '<tbody>';
+            foreach ( $fields as $field ) {
+                printf( '<tr><td style="text-align:left;">%s</td><td style="text-align:left;">%s</td></tr>', esc_html( $field['label'] ), esc_html( $field['value'] ) );
+            }
+            echo '</tbody></table>';
+        } else {
+            echo "\n" . __( 'Fluent Forms Answers', 'taxnexcy' ) . ":\n";
+            foreach ( $fields as $field ) {
+                echo $field['label'] . ': ' . $field['value'] . "\n";
+            }
+        }
     }
 
     /**
@@ -179,18 +211,17 @@ class Taxnexcy_FluentForms {
      * @param WC_Order $order The order object.
      */
     public function display_admin_meta_fields( $order ) {
-        echo '<div class="order_data_column">';
-        echo '<h4>' . esc_html__( 'Fluent Forms Answers', 'taxnexcy' ) . '</h4>';
-        foreach ( $order->get_meta_data() as $meta ) {
-            if ( strpos( $meta->key, 'taxnexcy_' ) === 0 && strpos( $meta->key, 'taxnexcy_label_' ) !== 0 ) {
-                $slug  = substr( $meta->key, 9 );
-                $label = $order->get_meta( 'taxnexcy_label_' . $slug, true );
-                if ( ! $label ) {
-                    $label = ucwords( str_replace( '_', ' ', $slug ) );
-                }
-                printf( '<p><strong>%s:</strong> %s</p>', esc_html( $label ), esc_html( $meta->value ) );
+        $fields = $this->get_ff_fields( $order );
+        if ( $fields ) {
+            echo '<div class="order_data_column">';
+            echo '<h4>' . esc_html__( 'Fluent Forms Answers', 'taxnexcy' ) . '</h4>';
+            echo '<table class="wp-list-table widefat striped">';
+            echo '<thead><tr><th>' . esc_html__( 'Question', 'taxnexcy' ) . '</th><th>' . esc_html__( 'Answer', 'taxnexcy' ) . '</th></tr></thead>';
+            echo '<tbody>';
+            foreach ( $fields as $field ) {
+                printf( '<tr><td>%s</td><td>%s</td></tr>', esc_html( $field['label'] ), esc_html( $field['value'] ) );
             }
+            echo '</tbody></table></div>';
         }
-        echo '</div>';
     }
 }

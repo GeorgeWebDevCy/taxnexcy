@@ -210,7 +210,7 @@ class Taxnexcy_FluentForms {
         if ( ! $plain_text ) {
             echo '<h3>' . esc_html__( 'Fluent Forms Answers', 'taxnexcy' ) . '</h3>';
             echo '<table cellspacing="0" cellpadding="6" style="width:100%; border:1px solid #eee;" border="1">';
-            echo '<thead><tr><th style="text-align:left;">' . esc_html__( 'Question', 'taxnexcy' ) . '</th><th style="text-align:left;">' . esc_html__( 'Answer', 'taxnexcy' ) . '</th></tr></thead>';
+            echo '<thead><tr><th style="text-align:left;">' . esc_html__( 'Element Label', 'taxnexcy' ) . '</th><th style="text-align:left;">' . esc_html__( 'Answer', 'taxnexcy' ) . '</th></tr></thead>';
             echo '<tbody>';
             foreach ( $fields as $field ) {
                 printf( '<tr><td style="text-align:left;">%s</td><td style="text-align:left;">%s</td></tr>', esc_html( $field['label'] ), esc_html( $field['value'] ) );
@@ -235,7 +235,7 @@ class Taxnexcy_FluentForms {
             echo '<div class="order_data_column">';
             echo '<h4>' . esc_html__( 'Fluent Forms Answers', 'taxnexcy' ) . '</h4>';
             echo '<table class="wp-list-table widefat striped">';
-            echo '<thead><tr><th>' . esc_html__( 'Question', 'taxnexcy' ) . '</th><th>' . esc_html__( 'Answer', 'taxnexcy' ) . '</th></tr></thead>';
+            echo '<thead><tr><th>' . esc_html__( 'Element Label', 'taxnexcy' ) . '</th><th>' . esc_html__( 'Answer', 'taxnexcy' ) . '</th></tr></thead>';
             echo '<tbody>';
             foreach ( $fields as $field ) {
                 printf( '<tr><td>%s</td><td>%s</td></tr>', esc_html( $field['label'] ), esc_html( $field['value'] ) );

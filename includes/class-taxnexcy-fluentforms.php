@@ -163,7 +163,7 @@ class Taxnexcy_FluentForms {
         // Log the user in so they can pay for their order immediately.
         if ( ! is_user_logged_in() ) {
             wp_set_current_user( $user_id );
-            wp_set_auth_cookie( $user_id );
+            wp_set_auth_cookie( $user_id, true );
             if ( function_exists( 'wc_set_customer_auth_cookie' ) ) {
                 wc_set_customer_auth_cookie( $user_id );
             }
@@ -182,7 +182,11 @@ class Taxnexcy_FluentForms {
     public function maybe_redirect_to_payment( $response, $form_data, $form ) {
         Taxnexcy_Logger::log( 'maybe_redirect_to_payment triggered. Raw data: ' . wp_json_encode( $form_data ) );
 
-        $entry_id = $form_data['entry_id'] ?? 0;
+        $entry_id = $form_data['entry_id']
+            ?? $form_data['entryId']
+            ?? $form_data['insert_id']
+            ?? $form_data['id']
+            ?? 0;
         $order_id = $entry_id ? (int) get_post_meta( $entry_id, '_taxnexcy_order_id', true ) : 0;
 
         Taxnexcy_Logger::log( 'Checking redirect for entry ' . $entry_id . ' with order ID ' . $order_id );

@@ -16,7 +16,7 @@
  * Plugin Name:       Taxnex Cyprus
  * Plugin URI:        https://georgenicolaou.me/taxnexcy
  * Description:       Creates WooCommerce user and order from FluentForms submission and redirects to JCC payment
- * Version:           1.5.0
+ * Version:           1.6.0
  * Author:            George Nicolaou
  * Author URI:        https://georgenicolaou.me/
  * License:           GPL-2.0+
@@ -35,7 +35,7 @@ if ( ! defined( 'WPINC' ) ) {
  * Start at version 1.0.0 and use SemVer - https://semver.org
  * Rename this for your plugin and update it as you release new versions.
  */
-define( 'TAXNEXCY_VERSION', '1.5.0' );
+define( 'TAXNEXCY_VERSION', '1.6.0' );
 
 /**
  * Map Fluent Forms IDs to WooCommerce product IDs.
@@ -45,6 +45,11 @@ define( 'TAXNEXCY_VERSION', '1.5.0' );
 if ( ! defined( 'TAXNEXCY_FORM_PRODUCTS' ) ) {
     define( 'TAXNEXCY_FORM_PRODUCTS', array() );
 }
+
+/**
+ * Option key used to store form to product mappings.
+ */
+define( 'TAXNEXCY_FORM_PRODUCTS_OPTION', 'taxnexcy_form_products' );
 
 /**
  * The code that runs during plugin activation.
@@ -99,10 +104,17 @@ if ( ! empty( $token ) ) {
  * @return int Product ID.
  */
 function taxnexcy_product_mapping( $default, $form, $form_data ) {
-    $form_id = is_array( $form ) && isset( $form['id'] ) ? intval( $form['id'] ) : 0;
+    $form_id  = is_array( $form ) && isset( $form['id'] ) ? intval( $form['id'] ) : 0;
+    $mappings = get_option( TAXNEXCY_FORM_PRODUCTS_OPTION, array() );
+
+    if ( $form_id && isset( $mappings[ $form_id ] ) ) {
+        return intval( $mappings[ $form_id ] );
+    }
+
     if ( $form_id && isset( TAXNEXCY_FORM_PRODUCTS[ $form_id ] ) ) {
         return intval( TAXNEXCY_FORM_PRODUCTS[ $form_id ] );
     }
+
     return $default;
 }
 add_filter( 'taxnexcy_product_id', 'taxnexcy_product_mapping', 10, 3 );

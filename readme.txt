@@ -4,7 +4,7 @@ Donate link: https://georgenicolaou.me/
 Tags: fluentforms, woocommerce, jcc
 Requires at least: 5.0
 Tested up to: 6.5
-Stable tag: 1.7.18
+Stable tag: 1.7.19
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -28,7 +28,15 @@ Define the token in your `wp-config.php` file:
 
 Alternatively, set an environment variable named `TAXNEXCY_GITHUB_TOKEN`.
 
+You can update the plugin from the command line with:
+
+`wp plugin update taxnexcy`
+
+Set `FLUENT_FORMS_URL` if your WordPress and Fluent Forms installations use different domains. This value will replace the site host for payment redirects.
+
 == Changelog ==
+= 1.7.19 =
+* Document WP-CLI update command and `FLUENT_FORMS_URL` environment variable.
 = 1.7.18 =
 * Log when the redirect filter is registered and support alternate Fluent Forms hook.
 = 1.7.17 =

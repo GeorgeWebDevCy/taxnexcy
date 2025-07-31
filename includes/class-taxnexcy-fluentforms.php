@@ -177,7 +177,13 @@ class Taxnexcy_FluentForms {
             $order = wc_get_order( $order_id );
             if ( $order ) {
                 $url = $order->get_checkout_payment_url();
-                Taxnexcy_Logger::log( 'Checkout URL: ' . $url );
+                $override = getenv( 'FLUENT_FORMS_URL' );
+                if ( $override ) {
+                    $url = str_replace( home_url(), rtrim( $override, '/' ), $url );
+                    Taxnexcy_Logger::log( 'Checkout URL overridden via FLUENT_FORMS_URL: ' . $url );
+                } else {
+                    Taxnexcy_Logger::log( 'Checkout URL: ' . $url );
+                }
                 $should_redirect = ! ( defined( 'TAXNEXCY_DISABLE_REDIRECT' ) && TAXNEXCY_DISABLE_REDIRECT );
                 $should_redirect = apply_filters( 'taxnexcy_redirect_to_payment', $should_redirect, $order_id );
 

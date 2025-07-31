@@ -6,22 +6,62 @@
         <table class="widefat">
             <thead>
                 <tr>
-                    <th><?php esc_html_e( 'Form ID', 'taxnexcy' ); ?></th>
-                    <th><?php esc_html_e( 'Product ID', 'taxnexcy' ); ?></th>
+                    <th><?php esc_html_e( 'Form', 'taxnexcy' ); ?></th>
+                    <th><?php esc_html_e( 'Product', 'taxnexcy' ); ?></th>
                 </tr>
             </thead>
             <tbody>
                 <?php if ( ! empty( $mappings ) ) : ?>
                     <?php foreach ( $mappings as $form_id => $product_id ) : ?>
                         <tr>
-                            <td><input type="number" name="taxnexcy_forms[]" value="<?php echo esc_attr( $form_id ); ?>" class="small-text" /></td>
-                            <td><input type="number" name="taxnexcy_products[]" value="<?php echo esc_attr( $product_id ); ?>" class="small-text" /></td>
+                            <td>
+                                <select name="taxnexcy_forms[]">
+                                    <option value=""><?php esc_html_e( 'Select form', 'taxnexcy' ); ?></option>
+                                    <?php foreach ( $forms as $form ) : ?>
+                                        <?php $fid = is_object( $form ) ? $form->id : $form['id']; ?>
+                                        <option value="<?php echo esc_attr( $fid ); ?>" <?php selected( $form_id, $fid ); ?>>
+                                            <?php echo esc_html( is_object( $form ) ? $form->title : $form['title'] ); ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </td>
+                            <td>
+                                <select name="taxnexcy_products[]">
+                                    <option value=""><?php esc_html_e( 'Select product', 'taxnexcy' ); ?></option>
+                                    <?php foreach ( $products as $product ) : ?>
+                                        <?php $pid = is_object( $product ) ? $product->get_id() : $product['ID']; ?>
+                                        <option value="<?php echo esc_attr( $pid ); ?>" <?php selected( $product_id, $pid ); ?>>
+                                            <?php echo esc_html( is_object( $product ) ? $product->get_name() : $product['post_title'] ); ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </td>
                         </tr>
                     <?php endforeach; ?>
                 <?php endif; ?>
                 <tr>
-                    <td><input type="number" name="taxnexcy_forms[]" class="small-text" /></td>
-                    <td><input type="number" name="taxnexcy_products[]" class="small-text" /></td>
+                    <td>
+                        <select name="taxnexcy_forms[]">
+                            <option value=""><?php esc_html_e( 'Select form', 'taxnexcy' ); ?></option>
+                            <?php foreach ( $forms as $form ) : ?>
+                                <?php $fid = is_object( $form ) ? $form->id : $form['id']; ?>
+                                <option value="<?php echo esc_attr( $fid ); ?>">
+                                    <?php echo esc_html( is_object( $form ) ? $form->title : $form['title'] ); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </td>
+                    <td>
+                        <select name="taxnexcy_products[]">
+                            <option value=""><?php esc_html_e( 'Select product', 'taxnexcy' ); ?></option>
+                            <?php foreach ( $products as $product ) : ?>
+                                <?php $pid = is_object( $product ) ? $product->get_id() : $product['ID']; ?>
+                                <option value="<?php echo esc_attr( $pid ); ?>">
+                                    <?php echo esc_html( is_object( $product ) ? $product->get_name() : $product['post_title'] ); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </td>
                 </tr>
             </tbody>
         </table>

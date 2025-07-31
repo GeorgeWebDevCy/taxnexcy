@@ -152,6 +152,28 @@ class Taxnexcy_Admin {
                 }
 
                 $mappings = get_option( TAXNEXCY_FORM_PRODUCTS_OPTION, array() );
+
+                $forms = array();
+                if ( class_exists( '\\FluentForm\\App\\Models\\Form' ) ) {
+                        try {
+                                $forms = \FluentForm\App\Models\Form::select( 'id', 'title' )
+                                        ->orderBy( 'title', 'ASC' )
+                                        ->get();
+                        } catch ( Exception $e ) {
+                                $forms = array();
+                        }
+                }
+
+                $products = array();
+                if ( function_exists( 'wc_get_products' ) ) {
+                        $products = wc_get_products( array(
+                                'limit'   => -1,
+                                'status'  => 'publish',
+                                'orderby' => 'title',
+                                'order'   => 'ASC',
+                        ) );
+                }
+
                 include plugin_dir_path( __FILE__ ) . 'partials/taxnexcy-settings-page.php';
         }
 

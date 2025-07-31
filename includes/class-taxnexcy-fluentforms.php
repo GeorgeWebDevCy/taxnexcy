@@ -129,6 +129,10 @@ class Taxnexcy_FluentForms {
         $order->save();
         Taxnexcy_Logger::log( 'Order ' . $order->get_id() . ' saved' );
 
+        // Log the saved question/answer pairs for debugging order issues.
+        $debug_fields = $this->get_ff_fields( $order );
+        Taxnexcy_Logger::log( 'Saved order fields: ' . wp_json_encode( $debug_fields ) );
+
         update_post_meta( $entry_id, '_taxnexcy_order_id', $order->get_id() );
         Taxnexcy_Logger::log( 'Stored order ID in entry meta' );
     }

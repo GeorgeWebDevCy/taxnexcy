@@ -26,6 +26,9 @@ class Taxnexcy_FluentForms {
 
         add_action( 'fluentform_submission_inserted', array( $this, 'create_customer_and_order' ), 10, 3 );
         add_filter( 'fluentform_submission_response', array( $this, 'maybe_redirect_to_payment' ), 10, 3 );
+        // Fallback filter name used by some Fluent Forms versions.
+        add_filter( 'fluentform_submit_response', array( $this, 'maybe_redirect_to_payment' ), 10, 3 );
+        Taxnexcy_Logger::log( 'Redirect filters registered' );
         add_action( 'woocommerce_email_order_meta', array( $this, 'display_email_meta_table' ), 10, 4 );
         add_action( 'woocommerce_admin_order_data_after_order_details', array( $this, 'display_admin_meta_fields' ), 15 );
     }

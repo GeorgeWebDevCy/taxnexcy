@@ -1,4 +1,5 @@
 <?php
+use FluentForm\App\Modules\Form\FormFieldsParser;
 /**
  * Handle Fluent Forms submissions.
  *
@@ -95,10 +96,14 @@ class Taxnexcy_FluentForms {
         $order->calculate_totals();
 
         $labels = array();
-        if ( isset( $form['fields'] ) && is_array( $form['fields'] ) ) {
+        if ( class_exists( '\\FluentForm\\App\\Modules\\Form\\FormFieldsParser' ) ) {
+            $form_object = (object) $form;
+            $labels      = FormFieldsParser::getAdminLabels( $form_object, array() );
+        } elseif ( isset( $form['fields'] ) && is_array( $form['fields'] ) ) {
             foreach ( $form['fields'] as $field ) {
                 $name  = sanitize_key( $field['name'] ?? ( $field['attributes']['name'] ?? '' ) );
-                $label = $field['settings']['label'] ?? ( $field['label'] ?? '' );
+                $label = $field['settings']['admin_field_label']
+                    ?: ( $field['settings']['label'] ?? ( $field['label'] ?? '' ) );
                 if ( $name ) {
                     $labels[ $name ] = sanitize_text_field( $label );
                 }

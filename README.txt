@@ -4,7 +4,7 @@ Donate link: https://georgenicolaou.me/
 Tags: comments, spam
 Requires at least: 3.0.1
 Tested up to: 3.4
-Stable tag: 1.6.0
+Stable tag: 1.7.0
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -67,12 +67,11 @@ directory take precedence. For example, `/assets/screenshot-1.png` would win ove
 
 == Changelog ==
 
-= 1.0 =
-* A change since the previous version.
-* Another change.
+= 1.7.0 =
+* Show product and form titles in dropdowns on the mapping page.
 
-= 0.5 =
-* List versions from most recent at top to oldest at bottom.
+= 1.6.0 =
+* Add admin page to map Fluent Forms to WooCommerce products.
 
 == Upgrade Notice ==
 

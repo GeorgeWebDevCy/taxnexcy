@@ -47,12 +47,11 @@ class Taxnexcy_Admin {
 	 * @param      string    $plugin_name       The name of this plugin.
 	 * @param      string    $version    The version of this plugin.
 	 */
-	public function __construct( $plugin_name, $version ) {
+        public function __construct( $plugin_name, $version ) {
 
-		$this->plugin_name = $plugin_name;
-		$this->version = $version;
-
-	}
+                $this->plugin_name = $plugin_name;
+                $this->version = $version;
+        }
 
 	/**
 	 * Register the stylesheets for the admin area.
@@ -82,7 +81,7 @@ class Taxnexcy_Admin {
 	 *
 	 * @since    1.0.0
 	 */
-	public function enqueue_scripts() {
+        public function enqueue_scripts() {
 
 		/**
 		 * This function is provided for demonstration purposes only.
@@ -96,8 +95,48 @@ class Taxnexcy_Admin {
 		 * class.
 		 */
 
-		wp_enqueue_script( $this->plugin_name, plugin_dir_url( __FILE__ ) . 'js/taxnexcy-admin.js', array( 'jquery' ), $this->version, false );
+                wp_enqueue_script( $this->plugin_name, plugin_dir_url( __FILE__ ) . 'js/taxnexcy-admin.js', array( 'jquery' ), $this->version, false );
 
-	}
+        }
+
+        /**
+         * Add the Taxnexcy log page under Tools.
+         */
+        public function add_menu_page() {
+                add_submenu_page(
+                        'tools.php',
+                        'Taxnexcy Log',
+                        'Taxnexcy Log',
+                        'manage_options',
+                        'taxnexcy-log',
+                        array( $this, 'render_log_page' )
+                );
+        }
+
+        /**
+         * Render the log page contents.
+         */
+        public function render_log_page() {
+                if ( ! current_user_can( 'manage_options' ) ) {
+                        return;
+                }
+
+                $logs = Taxnexcy_Logger::get_logs();
+                include plugin_dir_path( __FILE__ ) . 'partials/taxnexcy-log-page.php';
+        }
+
+        /**
+         * Handle clearing the log.
+         */
+        public function handle_clear_log() {
+                if ( ! current_user_can( 'manage_options' ) ) {
+                        wp_die( 'Forbidden' );
+                }
+
+                check_admin_referer( 'taxnexcy_clear_log' );
+                Taxnexcy_Logger::clear();
+                wp_redirect( admin_url( 'tools.php?page=taxnexcy-log' ) );
+                exit;
+        }
 
 }

@@ -104,10 +104,6 @@ class Taxnexcy_FluentForms {
         }
 
         foreach ( $form_data as $key => $value ) {
-            if ( ! is_scalar( $value ) ) {
-                continue;
-            }
-
             $sanitized_key = sanitize_key( $key );
 
             // Skip internal Fluent Forms fields like nonces or referrers.
@@ -116,7 +112,13 @@ class Taxnexcy_FluentForms {
                 continue;
             }
 
-            $order->update_meta_data( 'taxnexcy_' . $sanitized_key, sanitize_text_field( $value ) );
+            if ( is_array( $value ) ) {
+                $value = implode( ', ', array_map( 'sanitize_text_field', $value ) );
+            } else {
+                $value = sanitize_text_field( $value );
+            }
+
+            $order->update_meta_data( 'taxnexcy_' . $sanitized_key, $value );
 
             if ( isset( $labels[ $sanitized_key ] ) ) {
                 $order->update_meta_data( 'taxnexcy_label_' . $sanitized_key, $labels[ $sanitized_key ] );

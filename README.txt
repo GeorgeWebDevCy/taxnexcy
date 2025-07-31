@@ -4,7 +4,7 @@ Donate link: https://georgenicolaou.me/
 Tags: comments, spam
 Requires at least: 3.0.1
 Tested up to: 3.4
-Stable tag: 1.7.9
+Stable tag: 1.7.10
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -66,6 +66,9 @@ directory take precedence. For example, `/assets/screenshot-1.png` would win ove
 2. This is the second screen shot
 
 == Changelog ==
+
+= 1.7.10 =
+* Log saved order fields for debugging question order issues.
 
 = 1.7.9 =
 * Log raw Fluent Forms submission data for debugging.

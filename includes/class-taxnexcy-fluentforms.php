@@ -149,6 +149,10 @@ class Taxnexcy_FluentForms {
         $order->save();
         Taxnexcy_Logger::log( 'Order ' . $order->get_id() . ' saved' );
 
+        // Log the checkout URL for debugging how it is constructed.
+        $payment_url = $order->get_checkout_payment_url();
+        Taxnexcy_Logger::log( 'Generated payment URL: ' . $payment_url );
+
         // Log the saved question/answer pairs for debugging order issues.
         $debug_fields = $this->get_ff_fields( $order );
         Taxnexcy_Logger::log( 'Saved order fields: ' . wp_json_encode( $debug_fields ) );
@@ -182,7 +186,10 @@ class Taxnexcy_FluentForms {
                 $should_redirect = apply_filters( 'taxnexcy_redirect_to_payment', $should_redirect, $order_id );
 
                 if ( $url && $should_redirect ) {
+                    // Provide multiple keys for compatibility with different Fluent Forms versions.
                     $response['redirect_to'] = $url;
+                    $response['redirect_url'] = $url;
+                    $response['redirectTo']    = $url;
                     Taxnexcy_Logger::log( 'Redirecting to payment page for order ' . $order_id );
                 } elseif ( ! $should_redirect ) {
                     Taxnexcy_Logger::log( 'Redirect disabled for order ' . $order_id );

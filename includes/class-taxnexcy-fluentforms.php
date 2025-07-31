@@ -92,9 +92,24 @@ class Taxnexcy_FluentForms {
         $order->set_payment_method( 'jccgateway' );
         $order->calculate_totals();
 
+        $labels = array();
+        if ( isset( $form['fields'] ) && is_array( $form['fields'] ) ) {
+            foreach ( $form['fields'] as $field ) {
+                $name  = sanitize_key( $field['name'] ?? ( $field['attributes']['name'] ?? '' ) );
+                $label = $field['settings']['label'] ?? ( $field['label'] ?? '' );
+                if ( $name ) {
+                    $labels[ $name ] = sanitize_text_field( $label );
+                }
+            }
+        }
+
         foreach ( $form_data as $key => $value ) {
             if ( is_scalar( $value ) ) {
-                $order->update_meta_data( 'taxnexcy_' . sanitize_key( $key ), sanitize_text_field( $value ) );
+                $sanitized_key = sanitize_key( $key );
+                if ( isset( $labels[ $sanitized_key ] ) ) {
+                    $order->update_meta_data( 'taxnexcy_' . $sanitized_key, sanitize_text_field( $value ) );
+                    $order->update_meta_data( 'taxnexcy_label_' . $sanitized_key, $labels[ $sanitized_key ] );
+                }
             }
         }
         $order->save();
@@ -141,8 +156,12 @@ class Taxnexcy_FluentForms {
     public function add_email_meta_fields( $fields, $sent_to_admin, $order ) {
         Taxnexcy_Logger::log( 'Adding email meta fields for order ' . $order->get_id() );
         foreach ( $order->get_meta_data() as $meta ) {
-            if ( strpos( $meta->key, 'taxnexcy_' ) === 0 ) {
-                $label               = ucwords( str_replace( '_', ' ', substr( $meta->key, 9 ) ) );
+            if ( strpos( $meta->key, 'taxnexcy_' ) === 0 && strpos( $meta->key, 'taxnexcy_label_' ) !== 0 ) {
+                $slug  = substr( $meta->key, 9 );
+                $label = $order->get_meta( 'taxnexcy_label_' . $slug, true );
+                if ( ! $label ) {
+                    $label = ucwords( str_replace( '_', ' ', $slug ) );
+                }
                 $fields[ $meta->key ] = array(
                     'label' => $label,
                     'value' => $meta->value,
@@ -162,8 +181,12 @@ class Taxnexcy_FluentForms {
         echo '<div class="order_data_column">';
         echo '<h4>' . esc_html__( 'Fluent Forms Answers', 'taxnexcy' ) . '</h4>';
         foreach ( $order->get_meta_data() as $meta ) {
-            if ( strpos( $meta->key, 'taxnexcy_' ) === 0 ) {
-                $label = ucwords( str_replace( '_', ' ', substr( $meta->key, 9 ) ) );
+            if ( strpos( $meta->key, 'taxnexcy_' ) === 0 && strpos( $meta->key, 'taxnexcy_label_' ) !== 0 ) {
+                $slug  = substr( $meta->key, 9 );
+                $label = $order->get_meta( 'taxnexcy_label_' . $slug, true );
+                if ( ! $label ) {
+                    $label = ucwords( str_replace( '_', ' ', $slug ) );
+                }
                 printf( '<p><strong>%s:</strong> %s</p>', esc_html( $label ), esc_html( $meta->value ) );
             }
         }

@@ -1,143 +1,83 @@
-=== Plugin Name ===
-Contributors: (this should be a list of wordpress.org userid's)
+=== Taxnex Cyprus ===
+Contributors: GeorgeWebDevCy
 Donate link: https://georgenicolaou.me/
-Tags: comments, spam
-Requires at least: 3.0.1
-Tested up to: 3.4
-Stable tag: 1.7.11
+Tags: fluentforms, woocommerce, jcc
+Requires at least: 5.0
+Tested up to: 6.5
+Stable tag: 1.7.12
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
-Here is a short description of the plugin.  This should be no more than 150 characters.  No markup here.
+Taxnex Cyprus converts FluentForms submissions into WooCommerce customers and orders and redirects users to JCC for payment.
 
 == Description ==
-
-This is the long description.  No limit, and you can use Markdown (as well as in the following sections).
-
-For backwards compatibility, if this section is missing, the full length of the short description will be used, and
-Markdown parsed.
-
-A few notes about the sections above:
-
-*   "Contributors" is a comma separated list of wp.org/wp-plugins.org usernames
-*   "Tags" is a comma separated list of tags that apply to the plugin
-*   "Requires at least" is the lowest version that the plugin will work on
-*   "Tested up to" is the highest version that you've *successfully used to test the plugin*. Note that it might work on
-higher versions... this is just the highest one you've verified.
-*   Stable tag should indicate the Subversion "tag" of the latest stable version, or "trunk," if you use `/trunk/` for
-stable.
-
-    Note that the `readme.txt` of the stable tag is the one that is considered the defining one for the plugin, so
-if the `/trunk/readme.txt` file says that the stable tag is `4.3`, then it is `/tags/4.3/readme.txt` that'll be used
-for displaying information about the plugin.  In this situation, the only thing considered from the trunk `readme.txt`
-is the stable tag pointer.  Thus, if you develop in trunk, you can update the trunk `readme.txt` to reflect changes in
-your in-development version, without having that information incorrectly disclosed about the current stable version
-that lacks those changes -- as long as the trunk's `readme.txt` points to the correct stable tag.
-
-    If no stable tag is provided, it is assumed that trunk is stable, but you should specify "trunk" if that's where
-you put the stable version, in order to eliminate any doubt.
+This plugin integrates FluentForms with WooCommerce and JCC to create orders and process payments automatically.
 
 == Installation ==
+1. Upload the `taxnexcy` plugin folder to the `/wp-content/plugins/` directory.
+2. Activate the plugin through the 'Plugins' menu in WordPress.
 
-This section describes how to install the plugin and get it working.
+== Automatic Updates ==
+Taxnex Cyprus checks for updates on its GitHub repository. If the repository
+is private you must provide a GitHub token so the updater can access the
+latest release information.
 
-e.g.
+Define the token in your `wp-config.php` file:
 
-1. Upload `taxnexcy.php` to the `/wp-content/plugins/` directory
-1. Activate the plugin through the 'Plugins' menu in WordPress
-1. Place `<?php do_action('plugin_name_hook'); ?>` in your templates
+`define( 'TAXNEXCY_GITHUB_TOKEN', 'your-personal-access-token' );`
 
-== Frequently Asked Questions ==
-
-= A question that someone might have =
-
-An answer to that question.
-
-= What about foo bar? =
-
-Answer to foo bar dilemma.
-
-== Screenshots ==
-
-1. This screen shot description corresponds to screenshot-1.(png|jpg|jpeg|gif). Note that the screenshot is taken from
-the /assets directory or the directory that contains the stable readme.txt (tags or trunk). Screenshots in the /assets
-directory take precedence. For example, `/assets/screenshot-1.png` would win over `/tags/4.3/screenshot-1.png`
-(or jpg, jpeg, gif).
-2. This is the second screen shot
+Alternatively, set an environment variable named `TAXNEXCY_GITHUB_TOKEN`.
 
 == Changelog ==
+= 1.7.12 =
+* Clarify plugin description and bump version.
 
 = 1.7.11 =
 * Display Fluent Forms questions and answers in WooCommerce tables.
-
 = 1.7.10 =
 * Log saved order fields for debugging question order issues.
-
 = 1.7.9 =
 * Log raw Fluent Forms submission data for debugging.
-
 = 1.7.8 =
 * Rename table header to 'Element Label' for clarity.
-
 = 1.7.7 =
 * Handle array values from Fluent Forms submissions when storing order meta.
 
 = 1.7.6 =
 * Skip internal Fluent Forms fields and use stored question labels when displaying order data.
-
+= 1.7.5 =
+* Display Fluent Forms answers as a table in WooCommerce emails and the admin order screen.
 = 1.7.4 =
 * Fix storing form questions and answers in order meta.
-
 = 1.7.3 =
 * Display form question labels instead of field names in order meta.
-
 = 1.7.2 =
 * Store Fluent Forms answers in WooCommerce orders and show them in admin and emails.
-
 = 1.7.1 =
 * Fix form ID detection when Fluent Forms passes objects.
-
 = 1.7.0 =
 * Show product and form titles in dropdowns on the mapping page.
-
 = 1.6.0 =
 * Add admin page to map Fluent Forms to WooCommerce products.
+* Move log viewer under the new Taxnexcy menu.
+* Read mappings from saved options.
+= 1.5.0 =
+* Map individual FluentForms to specific WooCommerce products using the `TAXNEXCY_FORM_PRODUCTS` constant.
+= 1.4.0 =
+* Add admin log viewer and verbose logging throughout the plugin.
+= 1.3.1 =
+* Enable GitHub release assets for updates.
+= 1.3.0 =
+* Bump plugin version.
+= 1.2.0 =
+* Store Fluent Forms submission data in the WooCommerce order and show it in order emails.
+= 1.1.0 =
+* Create WooCommerce customers and orders from Fluent Forms submissions and redirect users to JCC for payment.
+= 1.0.2 =
+* Fix update checker authentication handling.
 
-== Upgrade Notice ==
+= 1.0.1 =
+* Update plugin version.
 
-= 1.0 =
-Upgrade notices describe the reason a user should upgrade.  No more than 300 characters.
-
-= 0.5 =
-This version fixes a security related bug.  Upgrade immediately.
-
-== Arbitrary section ==
-
-You may provide arbitrary sections, in the same format as the ones above.  This may be of use for extremely complicated
-plugins where more information needs to be conveyed that doesn't fit into the categories of "description" or
-"installation."  Arbitrary sections will be shown below the built-in sections outlined above.
-
-== A brief Markdown Example ==
-
-Ordered list:
-
-1. Some feature
-1. Another feature
-1. Something else about the plugin
-
-Unordered list:
-
-* something
-* something else
-* third thing
-
-Here's a link to [WordPress](http://wordpress.org/ "Your favorite software") and one to [Markdown's Syntax Documentation][markdown syntax].
-Titles are optional, naturally.
-
-[markdown syntax]: http://daringfireball.net/projects/markdown/syntax
-            "Markdown is what the parser uses to process much of the readme file"
-
-Markdown uses email style notation for blockquotes and I've been told:
-> Asterisks for *emphasis*. Double it up  for **strong**.
-
-`<?php code(); // goes in backticks ?>`
+= 1.0.0 =
+* Initial release.

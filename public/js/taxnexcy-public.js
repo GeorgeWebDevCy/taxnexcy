@@ -1,5 +1,17 @@
 (function( $ ) {
-	'use strict';
+        'use strict';
+
+        // Redirect to the payment page if the form response includes a URL.
+        $( document ).on( 'fluentform_submission_success', function( event, data, response ) {
+            var url = '';
+            if ( response ) {
+                url = response.redirect_to || response.redirect_url || response.redirectTo;
+            }
+
+            if ( url ) {
+                window.location.href = url;
+            }
+        } );
 
 	/**
 	 * All of the code for your public-facing JavaScript source

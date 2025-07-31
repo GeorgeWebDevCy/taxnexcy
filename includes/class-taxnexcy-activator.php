@@ -29,8 +29,10 @@ class Taxnexcy_Activator {
 	 *
 	 * @since    1.0.0
 	 */
-	public static function activate() {
-
-	}
+        public static function activate() {
+                if ( class_exists( 'Taxnexcy_Logger' ) ) {
+                        Taxnexcy_Logger::log( 'Plugin activated' );
+                }
+        }
 
 }

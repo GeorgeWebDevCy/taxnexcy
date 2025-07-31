@@ -29,8 +29,10 @@ class Taxnexcy_Deactivator {
 	 *
 	 * @since    1.0.0
 	 */
-	public static function deactivate() {
-
-	}
+        public static function deactivate() {
+                if ( class_exists( 'Taxnexcy_Logger' ) ) {
+                        Taxnexcy_Logger::log( 'Plugin deactivated' );
+                }
+        }
 
 }

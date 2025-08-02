@@ -24,7 +24,7 @@ class Taxnexcy_FluentForms {
         $this->version = $version;
         Taxnexcy_Logger::log( 'Initialising FluentForms integration' );
 
-        add_action( 'fluentform_submission_inserted', array( $this, 'create_customer_and_order' ), 10, 3 );
+        add_action( 'fluentform_submission_inserted', array( $this, 'create_customer' ), 10, 3 );
         add_filter( 'fluentform_submission_response', array( $this, 'maybe_redirect_to_payment' ), 10, 3 );
         // Fallback filter name used by some Fluent Forms versions.
         add_filter( 'fluentform_submit_response', array( $this, 'maybe_redirect_to_payment' ), 10, 3 );
@@ -34,13 +34,13 @@ class Taxnexcy_FluentForms {
     }
 
     /**
-     * Create WooCommerce customer and order when a form is submitted.
+     * Create a WooCommerce customer when a form is submitted.
      *
      * @param int   $entry_id Entry ID.
      * @param array $form_data Submitted form data.
      * @param array $form Form settings.
      */
-    public function create_customer_and_order( $entry_id, $form_data, $form ) {
+    public function create_customer( $entry_id, $form_data, $form ) {
         Taxnexcy_Logger::log( 'Processing submission entry ' . $entry_id );
         Taxnexcy_Logger::log( 'Submission data: ' . wp_json_encode( $form_data ) );
         Taxnexcy_Logger::log( 'Form settings: ' . wp_json_encode( $form ) );
@@ -84,83 +84,7 @@ class Taxnexcy_FluentForms {
             return;
         }
 
-        $product_id = apply_filters( 'taxnexcy_product_id', 0, $form, $form_data );
-        $product    = wc_get_product( $product_id );
-
-        if ( ! $product ) {
-            Taxnexcy_Logger::log( 'Product not found for form ' . ( $form['id'] ?? 'unknown' ) . ' (ID ' . $product_id . ')' );
-            return;
-        }
-
-        $order = wc_create_order( array( 'customer_id' => $user_id ) );
-        Taxnexcy_Logger::log( 'Created order ' . $order->get_id() . ' for user ' . $user_id );
-        $order->add_product( $product, 1 );
-
-        $available_gateways = WC()->payment_gateways->get_available_payment_gateways();
-        if ( isset( $available_gateways['jccgateway'] ) ) {
-            $order->set_payment_method( 'jccgateway' );
-            Taxnexcy_Logger::log( 'JCC gateway detected and set as payment method' );
-        } elseif ( $available_gateways ) {
-            $fallback = key( $available_gateways );
-            $order->set_payment_method( $fallback );
-            Taxnexcy_Logger::log( 'JCC gateway not available, using ' . $fallback . ' as fallback' );
-        } else {
-            Taxnexcy_Logger::log( 'No payment gateways available' );
-        }
-
-        $order->calculate_totals();
-
-        $labels = array();
-        if ( class_exists( '\\FluentForm\\App\\Modules\\Form\\FormFieldsParser' ) ) {
-            $form_object = (object) $form;
-            $labels      = FormFieldsParser::getAdminLabels( $form_object, array() );
-        } elseif ( isset( $form['fields'] ) && is_array( $form['fields'] ) ) {
-            foreach ( $form['fields'] as $field ) {
-                $name  = sanitize_key( $field['name'] ?? ( $field['attributes']['name'] ?? '' ) );
-                $label = $field['settings']['admin_field_label']
-                    ?: ( $field['settings']['label'] ?? ( $field['label'] ?? '' ) );
-                if ( $name ) {
-                    $labels[ $name ] = sanitize_text_field( $label );
-                }
-            }
-        }
-
-        foreach ( $form_data as $key => $value ) {
-            $sanitized_key = sanitize_key( $key );
-
-            // Skip internal Fluent Forms fields like nonces or referrers.
-            $skip_fields = array( 'fluentform_nonce', 'fluentform_id', 'wp_http_referer' );
-            if ( in_array( $sanitized_key, $skip_fields, true ) || preg_match( '/^fluentform_\d+_fluentformnonce$/', $sanitized_key ) ) {
-                continue;
-            }
-
-            if ( is_array( $value ) ) {
-                $value = implode( ', ', array_map( 'sanitize_text_field', $value ) );
-            } else {
-                $value = sanitize_text_field( $value );
-            }
-
-            $order->update_meta_data( 'taxnexcy_' . $sanitized_key, $value );
-
-            if ( isset( $labels[ $sanitized_key ] ) ) {
-                $order->update_meta_data( 'taxnexcy_label_' . $sanitized_key, $labels[ $sanitized_key ] );
-            }
-        }
-        $order->save();
-        Taxnexcy_Logger::log( 'Order ' . $order->get_id() . ' saved' );
-
-        // Log the checkout URL for debugging how it is constructed.
-        $payment_url = $order->get_checkout_payment_url();
-        Taxnexcy_Logger::log( 'Generated payment URL: ' . $payment_url );
-
-        // Log the saved question/answer pairs for debugging order issues.
-        $debug_fields = $this->get_ff_fields( $order );
-        Taxnexcy_Logger::log( 'Saved order fields: ' . wp_json_encode( $debug_fields ) );
-
-        update_post_meta( $entry_id, '_taxnexcy_order_id', $order->get_id() );
-        Taxnexcy_Logger::log( 'Stored order ID in entry meta' );
-
-        // Log the user in so they can pay for their order immediately.
+        // Log the user in so they can proceed to checkout immediately.
         if ( ! is_user_logged_in() ) {
             wp_set_current_user( $user_id );
             wp_set_auth_cookie( $user_id, true );
@@ -172,7 +96,7 @@ class Taxnexcy_FluentForms {
     }
 
     /**
-     * Redirect users to the order payment page after submission.
+     * Redirect users to the WooCommerce checkout after submission.
      *
      * @param array $response Original response.
      * @param array $form_data Form data.
@@ -182,64 +106,40 @@ class Taxnexcy_FluentForms {
     public function maybe_redirect_to_payment( $response, $form_data, $form ) {
         Taxnexcy_Logger::log( 'maybe_redirect_to_payment triggered. Raw data: ' . wp_json_encode( $form_data ) );
 
-        $entry_id = $form_data['entry_id']
-            ?? $form_data['entryId']
-            ?? $form_data['insert_id']
-            ?? $form_data['id']
-            ?? 0;
-        $order_id = $entry_id ? (int) get_post_meta( $entry_id, '_taxnexcy_order_id', true ) : 0;
+        $product_id = apply_filters( 'taxnexcy_product_id', 0, $form, $form_data );
+        $product    = wc_get_product( $product_id );
 
-        Taxnexcy_Logger::log( 'Checking redirect for entry ' . $entry_id . ' with order ID ' . $order_id );
+        if ( ! $product ) {
+            Taxnexcy_Logger::log( 'Product not found for redirect. ID: ' . $product_id );
+            return $response;
+        }
 
-        if ( $order_id ) {
-            $order = wc_get_order( $order_id );
-            if ( $order ) {
-                // Build a checkout URL that adds the product to the cart so users land on the normal checkout page.
-                $items = $order->get_items();
-                $url   = '';
-                if ( $items ) {
-                    $item       = reset( $items );
-                    $product_id = $item->get_product_id();
-                    $quantity   = $item->get_quantity();
-                    $url        = add_query_arg(
-                        array(
-                            'add-to-cart' => $product_id,
-                            'quantity'    => $quantity,
-                        ),
-                        wc_get_checkout_url()
-                    );
-                    Taxnexcy_Logger::log( 'Checkout URL with cart params: ' . $url );
-                }
+        $url = add_query_arg(
+            array(
+                'add-to-cart' => $product_id,
+                'quantity'    => 1,
+            ),
+            wc_get_checkout_url()
+        );
+        Taxnexcy_Logger::log( 'Checkout URL with cart params: ' . $url );
 
-                // Fallback to the order's direct payment URL if we could not build the cart URL.
-                if ( ! $url ) {
-                    $url = $order->get_checkout_payment_url();
-                    Taxnexcy_Logger::log( 'Fallback checkout URL: ' . $url );
-                }
+        $should_redirect = ! ( defined( 'TAXNEXCY_DISABLE_REDIRECT' ) && TAXNEXCY_DISABLE_REDIRECT );
+        $should_redirect = apply_filters( 'taxnexcy_redirect_to_payment', $should_redirect, $product_id );
 
-                $should_redirect = ! ( defined( 'TAXNEXCY_DISABLE_REDIRECT' ) && TAXNEXCY_DISABLE_REDIRECT );
-                $should_redirect = apply_filters( 'taxnexcy_redirect_to_payment', $should_redirect, $order_id );
-
-                if ( $url && $should_redirect ) {
-                    // Provide multiple keys for compatibility with different Fluent Forms versions.
-                    $response['redirect_to'] = $url;
-                    $response['redirect_url'] = $url;
-                    $response['redirectTo']   = $url;
-                    if ( ! wp_doing_ajax() ) {
-                        wp_safe_redirect( $url );
-                        exit;
-                    }
-                    Taxnexcy_Logger::log( 'Redirecting to checkout for order ' . $order_id );
-                } elseif ( ! $should_redirect ) {
-                    Taxnexcy_Logger::log( 'Redirect disabled for order ' . $order_id );
-                } else {
-                    Taxnexcy_Logger::log( 'Checkout URL empty for order ' . $order_id );
-                }
-            } else {
-                Taxnexcy_Logger::log( 'Could not load order ' . $order_id );
+        if ( $url && $should_redirect ) {
+            // Provide multiple keys for compatibility with different Fluent Forms versions.
+            $response['redirect_to'] = $url;
+            $response['redirect_url'] = $url;
+            $response['redirectTo']   = $url;
+            if ( ! wp_doing_ajax() ) {
+                wp_safe_redirect( $url );
+                exit;
             }
+            Taxnexcy_Logger::log( 'Redirecting to checkout for product ' . $product_id );
+        } elseif ( ! $should_redirect ) {
+            Taxnexcy_Logger::log( 'Redirect disabled for product ' . $product_id );
         } else {
-            Taxnexcy_Logger::log( 'No order found for entry ' . $entry_id );
+            Taxnexcy_Logger::log( 'Checkout URL empty for product ' . $product_id );
         }
 
         Taxnexcy_Logger::log( 'Response after redirect check: ' . wp_json_encode( $response ) );

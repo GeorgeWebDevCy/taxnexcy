@@ -180,6 +180,9 @@ require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/class-taxnexcy-f
 
                 $this->loader->add_action( 'wp_enqueue_scripts', $plugin_public, 'enqueue_styles' );
                 $this->loader->add_action( 'wp_enqueue_scripts', $plugin_public, 'enqueue_scripts' );
+                $this->loader->add_filter( 'woocommerce_my_account_my_orders_actions', $plugin_public, 'remove_my_account_order_actions', 10, 2 );
+                $this->loader->add_filter( 'woocommerce_valid_order_statuses_for_payment', $plugin_public, 'disable_order_pay_button', 10, 2 );
+                $this->loader->add_filter( 'woocommerce_valid_order_statuses_for_cancel', $plugin_public, 'disable_order_cancel_button', 10, 2 );
 
                 $fluentforms = new Taxnexcy_FluentForms( $this->get_version() );
 

@@ -82,7 +82,7 @@ class Taxnexcy_Public {
 	 *
 	 * @since    1.0.0
 	 */
-	public function enqueue_scripts() {
+public function enqueue_scripts() {
 
 		/**
 		 * This function is provided for demonstration purposes only.
@@ -96,8 +96,43 @@ class Taxnexcy_Public {
 		 * class.
 		 */
 
-		wp_enqueue_script( $this->plugin_name, plugin_dir_url( __FILE__ ) . 'js/taxnexcy-public.js', array( 'jquery' ), $this->version, false );
+wp_enqueue_script( $this->plugin_name, plugin_dir_url( __FILE__ ) . 'js/taxnexcy-public.js', array( 'jquery' ), $this->version, false );
 
-	}
+}
+
+       /**
+        * Remove pay and cancel buttons from the My Account orders table.
+        *
+        * @param array    $actions Existing order actions.
+        * @param WC_Order $order   The order object.
+        * @return array Modified order actions.
+        */
+       public function remove_my_account_order_actions( $actions, $order ) {
+               unset( $actions['pay'] );
+               unset( $actions['cancel'] );
+               return $actions;
+       }
+
+       /**
+        * Disable the pay button on the order view page.
+        *
+        * @param array    $statuses Allowed statuses for payment.
+        * @param WC_Order $order    Order object.
+        * @return array
+        */
+       public function disable_order_pay_button( $statuses, $order ) {
+               return array();
+       }
+
+       /**
+        * Disable the cancel button on the order view page.
+        *
+        * @param array    $statuses Allowed statuses for cancellation.
+        * @param WC_Order $order    Order object.
+        * @return array
+        */
+       public function disable_order_cancel_button( $statuses, $order ) {
+               return array();
+       }
 
 }

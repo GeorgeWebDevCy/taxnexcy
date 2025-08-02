@@ -194,8 +194,29 @@ class Taxnexcy_FluentForms {
         if ( $order_id ) {
             $order = wc_get_order( $order_id );
             if ( $order ) {
-                $url = $order->get_checkout_payment_url();
-                Taxnexcy_Logger::log( 'Checkout URL: ' . $url );
+                // Build a checkout URL that adds the product to the cart so users land on the normal checkout page.
+                $items = $order->get_items();
+                $url   = '';
+                if ( $items ) {
+                    $item       = reset( $items );
+                    $product_id = $item->get_product_id();
+                    $quantity   = $item->get_quantity();
+                    $url        = add_query_arg(
+                        array(
+                            'add-to-cart' => $product_id,
+                            'quantity'    => $quantity,
+                        ),
+                        wc_get_checkout_url()
+                    );
+                    Taxnexcy_Logger::log( 'Checkout URL with cart params: ' . $url );
+                }
+
+                // Fallback to the order's direct payment URL if we could not build the cart URL.
+                if ( ! $url ) {
+                    $url = $order->get_checkout_payment_url();
+                    Taxnexcy_Logger::log( 'Fallback checkout URL: ' . $url );
+                }
+
                 $should_redirect = ! ( defined( 'TAXNEXCY_DISABLE_REDIRECT' ) && TAXNEXCY_DISABLE_REDIRECT );
                 $should_redirect = apply_filters( 'taxnexcy_redirect_to_payment', $should_redirect, $order_id );
 
@@ -203,12 +224,12 @@ class Taxnexcy_FluentForms {
                     // Provide multiple keys for compatibility with different Fluent Forms versions.
                     $response['redirect_to'] = $url;
                     $response['redirect_url'] = $url;
-                    $response['redirectTo']    = $url;
+                    $response['redirectTo']   = $url;
                     if ( ! wp_doing_ajax() ) {
                         wp_safe_redirect( $url );
                         exit;
                     }
-                    Taxnexcy_Logger::log( 'Redirecting to payment page for order ' . $order_id );
+                    Taxnexcy_Logger::log( 'Redirecting to checkout for order ' . $order_id );
                 } elseif ( ! $should_redirect ) {
                     Taxnexcy_Logger::log( 'Redirect disabled for order ' . $order_id );
                 } else {

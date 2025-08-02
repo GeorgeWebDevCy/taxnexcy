@@ -4,14 +4,14 @@ Donate link: https://georgenicolaou.me/
 Tags: fluentforms, woocommerce, jcc
 Requires at least: 5.0
 Tested up to: 6.5
- Stable tag: 1.7.23
+ Stable tag: 1.7.24
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
-Taxnex Cyprus converts FluentForms submissions into WooCommerce customers and orders and redirects users to JCC for payment.
+Taxnex Cyprus converts FluentForms submissions into WooCommerce customers and redirects users to checkout for payment.
 
 == Description ==
-This plugin integrates FluentForms with WooCommerce and JCC to create orders and process payments automatically.
+This plugin integrates FluentForms with WooCommerce to create customers and process payments automatically.
 
 == Installation ==
 1. Upload the `taxnexcy` plugin folder to the `/wp-content/plugins/` directory.
@@ -29,6 +29,9 @@ Define the token in your `wp-config.php` file:
 Alternatively, set an environment variable named `TAXNEXCY_GITHUB_TOKEN`.
 
 == Changelog ==
+= 1.7.24 =
+* Create customers without generating orders and redirect directly to checkout.
+
 = 1.7.23 =
 * Redirect users to checkout with `add-to-cart` and `quantity` query parameters.
 = 1.7.22 =

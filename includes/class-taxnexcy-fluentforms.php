@@ -31,6 +31,7 @@ class Taxnexcy_FluentForms {
         Taxnexcy_Logger::log( 'Redirect filters registered' );
         add_action( 'woocommerce_email_order_meta', array( $this, 'display_email_meta_table' ), 10, 4 );
         add_action( 'woocommerce_admin_order_data_after_order_details', array( $this, 'display_admin_meta_fields' ), 15 );
+        add_action( 'woocommerce_checkout_create_order', array( $this, 'add_session_fields_to_order' ), 10, 2 );
     }
 
     /**
@@ -93,6 +94,49 @@ class Taxnexcy_FluentForms {
             }
             Taxnexcy_Logger::log( 'Logged in user ' . $user_id );
         }
+
+        $labels = array();
+        if ( class_exists( '\\FluentForm\\App\\Modules\\Form\\FormFieldsParser' ) ) {
+            $form_object = (object) $form;
+            $labels      = FormFieldsParser::getAdminLabels( $form_object, array() );
+        } elseif ( isset( $form['fields'] ) && is_array( $form['fields'] ) ) {
+            foreach ( $form['fields'] as $field ) {
+                $name  = sanitize_key( $field['name'] ?? ( $field['attributes']['name'] ?? '' ) );
+                $label = $field['settings']['admin_field_label']
+                    ?: ( $field['settings']['label'] ?? ( $field['label'] ?? '' ) );
+                if ( $name ) {
+                    $labels[ $name ] = sanitize_text_field( $label );
+                }
+            }
+        }
+
+        $fields = array();
+        foreach ( $form_data as $key => $value ) {
+            $sanitized_key = sanitize_key( $key );
+
+            // Skip internal Fluent Forms fields like nonces or referrers.
+            $skip_fields = array( 'fluentform_nonce', 'fluentform_id', 'wp_http_referer' );
+            if ( in_array( $sanitized_key, $skip_fields, true ) || preg_match( '/^fluentform_\d+_fluentformnonce$/', $sanitized_key ) ) {
+                continue;
+            }
+
+            if ( is_array( $value ) ) {
+                $value = implode( ', ', array_map( 'sanitize_text_field', $value ) );
+            } else {
+                $value = sanitize_text_field( $value );
+            }
+
+            $fields[] = array(
+                'slug'  => $sanitized_key,
+                'label' => $labels[ $sanitized_key ] ?? ucwords( str_replace( '_', ' ', $sanitized_key ) ),
+                'value' => $value,
+            );
+        }
+
+        if ( function_exists( 'WC' ) && WC()->session ) {
+            WC()->session->set( 'taxnexcy_fields', $fields );
+            Taxnexcy_Logger::log( 'Stored fields in session: ' . wp_json_encode( $fields ) );
+        }
     }
 
     /**
@@ -145,6 +189,31 @@ class Taxnexcy_FluentForms {
         Taxnexcy_Logger::log( 'Response after redirect check: ' . wp_json_encode( $response ) );
 
         return $response;
+    }
+
+    /**
+     * Add saved Fluent Forms fields from the session to WooCommerce order meta.
+     *
+     * @param WC_Order $order Order object.
+     * @param array    $data  Posted checkout data.
+     */
+    public function add_session_fields_to_order( $order, $data ) {
+        if ( ! function_exists( 'WC' ) || ! WC()->session ) {
+            return;
+        }
+
+        $fields = WC()->session->get( 'taxnexcy_fields' );
+        if ( ! $fields ) {
+            return;
+        }
+
+        foreach ( $fields as $field ) {
+            $order->update_meta_data( 'taxnexcy_' . $field['slug'], $field['value'] );
+            $order->update_meta_data( 'taxnexcy_label_' . $field['slug'], $field['label'] );
+        }
+
+        WC()->session->set( 'taxnexcy_fields', null );
+        Taxnexcy_Logger::log( 'Added session fields to order ' . $order->get_id() );
     }
 
     /**

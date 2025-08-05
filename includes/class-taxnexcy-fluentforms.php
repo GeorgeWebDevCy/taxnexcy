@@ -50,10 +50,13 @@ class Taxnexcy_FluentForms {
         if ( is_array( $value ) ) {
             $sanitized = array();
             foreach ( $value as $key => $sub_value ) {
-                $sub_value = $this->sanitize_field_value( $sub_value, $labels );
-                if ( is_string( $key ) && $key !== '' && ! is_numeric( $key ) ) {
-                    $label       = isset( $labels[ $key ] ) ? $labels[ $key ] : $key;
-                    $sanitized[] = sanitize_text_field( $label ) . ': ' . $sub_value;
+                $sub_labels = ( isset( $labels[ $key ] ) && is_array( $labels[ $key ] ) ) ? $labels[ $key ] : array();
+                $sub_value  = $this->sanitize_field_value( $sub_value, $sub_labels );
+
+                if ( isset( $labels[ $key ] ) && ! is_array( $labels[ $key ] ) ) {
+                    $sanitized[] = sanitize_text_field( $labels[ $key ] ) . ': ' . $sub_value;
+                } elseif ( is_string( $key ) && $key !== '' && ! is_numeric( $key ) ) {
+                    $sanitized[] = sanitize_text_field( $key ) . ': ' . $sub_value;
                 } else {
                     $sanitized[] = $sub_value;
                 }
@@ -138,14 +141,52 @@ class Taxnexcy_FluentForms {
         $labels = array();
         if ( class_exists( '\\FluentForm\\App\\Modules\\Form\\FormFieldsParser' ) ) {
             $form_object = (object) $form;
-            $labels      = FormFieldsParser::getAdminLabels( $form_object, array() );
+            $raw_labels  = FormFieldsParser::getAdminLabels( $form_object, array() );
+            foreach ( $raw_labels as $key => $label ) {
+                $parts = explode( '.', $key );
+                $base  = array_shift( $parts );
+                if ( empty( $parts ) ) {
+                    if ( isset( $labels[ $base ] ) && is_array( $labels[ $base ] ) ) {
+                        $labels[ $base ]['__label'] = $label;
+                    } else {
+                        $labels[ $base ] = $label;
+                    }
+                } else {
+                    if ( ! isset( $labels[ $base ] ) || ! is_array( $labels[ $base ] ) ) {
+                        $labels[ $base ] = array();
+                    }
+                    $ref =& $labels[ $base ];
+                    foreach ( $parts as $i => $part ) {
+                        if ( $i === count( $parts ) - 1 ) {
+                            $ref[ $part ] = $label;
+                        } else {
+                            if ( ! isset( $ref[ $part ] ) || ! is_array( $ref[ $part ] ) ) {
+                                $ref[ $part ] = array();
+                            }
+                            $ref =& $ref[ $part ];
+                        }
+                    }
+                }
+            }
         } elseif ( isset( $form['fields'] ) && is_array( $form['fields'] ) ) {
             foreach ( $form['fields'] as $field ) {
                 $name  = sanitize_key( $field['name'] ?? ( $field['attributes']['name'] ?? '' ) );
                 $label = $field['settings']['admin_field_label']
                     ?: ( $field['settings']['label'] ?? ( $field['label'] ?? '' ) );
                 if ( $name ) {
-                    $labels[ $name ] = sanitize_text_field( $label );
+                    if ( 'input_repeat' === ( $field['element'] ?? '' ) && ! empty( $field['fields'] ) ) {
+                        $labels[ $name ] = array( '__label' => sanitize_text_field( $label ) );
+                        foreach ( $field['fields'] as $child ) {
+                            $child_name  = sanitize_key( $child['name'] ?? ( $child['attributes']['name'] ?? '' ) );
+                            $child_label = $child['settings']['admin_field_label']
+                                ?: ( $child['settings']['label'] ?? ( $child['label'] ?? '' ) );
+                            if ( $child_name ) {
+                                $labels[ $name ][ $child_name ] = sanitize_text_field( $child_label );
+                            }
+                        }
+                    } else {
+                        $labels[ $name ] = sanitize_text_field( $label );
+                    }
                 }
             }
         }
@@ -160,11 +201,18 @@ class Taxnexcy_FluentForms {
                 continue;
             }
 
-            $value = $this->sanitize_field_value( $value, $labels );
+            $field_labels  = $labels[ $sanitized_key ] ?? array();
+            $nested_labels = is_array( $field_labels ) ? $field_labels : array();
+            if ( is_array( $nested_labels ) ) {
+                unset( $nested_labels['__label'] );
+            }
+            $value = $this->sanitize_field_value( $value, $nested_labels );
+
+            $field_label = is_array( $field_labels ) ? ( $field_labels['__label'] ?? ucwords( str_replace( '_', ' ', $sanitized_key ) ) ) : ( $field_labels ?: ucwords( str_replace( '_', ' ', $sanitized_key ) ) );
 
             $fields[] = array(
                 'slug'  => $sanitized_key,
-                'label' => $labels[ $sanitized_key ] ?? ucwords( str_replace( '_', ' ', $sanitized_key ) ),
+                'label' => $field_label,
                 'value' => $value,
             );
         }

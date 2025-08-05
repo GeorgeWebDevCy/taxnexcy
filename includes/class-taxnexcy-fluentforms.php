@@ -35,6 +35,34 @@ class Taxnexcy_FluentForms {
     }
 
     /**
+     * Sanitize a field value recursively.
+     *
+     * Fluent Forms repeater fields submit nested arrays which would otherwise
+     * be stored as the string "Array" in order meta. This helper flattens any
+     * nested values into a readable string so they can be displayed in emails
+     * and the admin screens.
+     *
+     * @param mixed $value Field value.
+     * @return string Sanitized value.
+     */
+    private function sanitize_field_value( $value ) {
+        if ( is_array( $value ) ) {
+            $sanitized = array();
+            foreach ( $value as $key => $sub_value ) {
+                $sub_value = $this->sanitize_field_value( $sub_value );
+                if ( is_string( $key ) && $key !== '' && ! is_numeric( $key ) ) {
+                    $sanitized[] = sanitize_text_field( $key ) . ': ' . $sub_value;
+                } else {
+                    $sanitized[] = $sub_value;
+                }
+            }
+            return implode( ' | ', array_filter( $sanitized, 'strlen' ) );
+        }
+
+        return sanitize_text_field( $value );
+    }
+
+    /**
      * Create a WooCommerce customer when a form is submitted.
      *
      * @param int   $entry_id Entry ID.
@@ -130,11 +158,7 @@ class Taxnexcy_FluentForms {
                 continue;
             }
 
-            if ( is_array( $value ) ) {
-                $value = implode( ', ', array_map( 'sanitize_text_field', $value ) );
-            } else {
-                $value = sanitize_text_field( $value );
-            }
+            $value = $this->sanitize_field_value( $value );
 
             $fields[] = array(
                 'slug'  => $sanitized_key,
@@ -253,9 +277,16 @@ class Taxnexcy_FluentForms {
                 $label = ucwords( str_replace( '_', ' ', $slug ) );
             }
 
+            $value = $meta->value;
+            if ( is_array( $value ) ) {
+                $value = $this->sanitize_field_value( $value );
+            } else {
+                $value = sanitize_text_field( $value );
+            }
+
             $fields[] = array(
                 'label' => $label,
-                'value' => $meta->value,
+                'value' => $value,
             );
         }
 

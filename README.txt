@@ -4,7 +4,7 @@ Donate link: https://georgenicolaou.me/
 Tags: fluentforms, woocommerce, jcc
 Requires at least: 5.0
 Tested up to: 6.5
- Stable tag: 1.7.27
+ Stable tag: 1.7.28
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -29,6 +29,9 @@ Define the token in your `wp-config.php` file:
 Alternatively, set an environment variable named `TAXNEXCY_GITHUB_TOKEN`.
 
 == Changelog ==
+= 1.7.28 =
+* Display values from Fluent Forms repeater fields in WooCommerce emails.
+
 = 1.7.27 =
 * Skip internal Fluent Forms fields like the nonce, embed post ID and referer.
 

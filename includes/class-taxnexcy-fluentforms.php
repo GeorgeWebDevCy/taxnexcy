@@ -42,16 +42,18 @@ class Taxnexcy_FluentForms {
      * nested values into a readable string so they can be displayed in emails
      * and the admin screens.
      *
-     * @param mixed $value Field value.
+     * @param mixed $value  Field value.
+     * @param array $labels Optional field labels indexed by field slug.
      * @return string Sanitized value.
      */
-    private function sanitize_field_value( $value ) {
+    private function sanitize_field_value( $value, $labels = array() ) {
         if ( is_array( $value ) ) {
             $sanitized = array();
             foreach ( $value as $key => $sub_value ) {
-                $sub_value = $this->sanitize_field_value( $sub_value );
+                $sub_value = $this->sanitize_field_value( $sub_value, $labels );
                 if ( is_string( $key ) && $key !== '' && ! is_numeric( $key ) ) {
-                    $sanitized[] = sanitize_text_field( $key ) . ': ' . $sub_value;
+                    $label       = isset( $labels[ $key ] ) ? $labels[ $key ] : $key;
+                    $sanitized[] = sanitize_text_field( $label ) . ': ' . $sub_value;
                 } else {
                     $sanitized[] = $sub_value;
                 }
@@ -158,7 +160,7 @@ class Taxnexcy_FluentForms {
                 continue;
             }
 
-            $value = $this->sanitize_field_value( $value );
+            $value = $this->sanitize_field_value( $value, $labels );
 
             $fields[] = array(
                 'slug'  => $sanitized_key,

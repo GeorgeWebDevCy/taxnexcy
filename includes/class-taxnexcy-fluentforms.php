@@ -80,6 +80,9 @@ class Taxnexcy_FluentForms {
 
                 if ( $label ) {
                     $sanitized[] = sanitize_text_field( $label ) . ': ' . $sub_value;
+                } elseif ( $is_numeric && ! empty( $labels ) ) {
+                    $fallback_label = isset( $label_index[ $key ] ) ? $label_index[ $key ] : $key + 1;
+                    $sanitized[]   = sanitize_text_field( $fallback_label ) . ': ' . $sub_value;
                 } elseif ( is_string( $key ) && $key !== '' && ! is_numeric( $key ) ) {
                     $sanitized[] = sanitize_text_field( $key ) . ': ' . $sub_value;
                 } else {

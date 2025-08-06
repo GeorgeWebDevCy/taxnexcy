@@ -48,19 +48,45 @@ class Taxnexcy_FluentForms {
      */
     private function sanitize_field_value( $value, $labels = array() ) {
         if ( is_array( $value ) ) {
-            $sanitized = array();
-            foreach ( $value as $key => $sub_value ) {
-                $sub_labels = ( isset( $labels[ $key ] ) && is_array( $labels[ $key ] ) ) ? $labels[ $key ] : array();
-                $sub_value  = $this->sanitize_field_value( $sub_value, $sub_labels );
+            $sanitized   = array();
+            $is_numeric  = array_keys( $value ) === range( 0, count( $value ) - 1 );
+            $label_index = array_values( $labels );
 
-                if ( isset( $labels[ $key ] ) && ! is_array( $labels[ $key ] ) ) {
-                    $sanitized[] = sanitize_text_field( $labels[ $key ] ) . ': ' . $sub_value;
+            foreach ( $value as $key => $sub_value ) {
+                // If this is a repeater row (numeric keys, nested arrays) reuse the same labels for each row.
+                if ( $is_numeric && is_array( $sub_value ) && ! isset( $labels[ $key ] ) ) {
+                    $sanitized[] = $this->sanitize_field_value( $sub_value, $labels );
+                    continue;
+                }
+
+                $sub_labels = array();
+                $label      = '';
+
+                if ( isset( $labels[ $key ] ) ) {
+                    if ( is_array( $labels[ $key ] ) ) {
+                        $sub_labels = $labels[ $key ];
+                    } else {
+                        $label = $labels[ $key ];
+                    }
+                } elseif ( $is_numeric && isset( $label_index[ $key ] ) ) {
+                    if ( is_array( $label_index[ $key ] ) ) {
+                        $sub_labels = $label_index[ $key ];
+                    } else {
+                        $label = $label_index[ $key ];
+                    }
+                }
+
+                $sub_value = $this->sanitize_field_value( $sub_value, $sub_labels );
+
+                if ( $label ) {
+                    $sanitized[] = sanitize_text_field( $label ) . ': ' . $sub_value;
                 } elseif ( is_string( $key ) && $key !== '' && ! is_numeric( $key ) ) {
                     $sanitized[] = sanitize_text_field( $key ) . ': ' . $sub_value;
                 } else {
                     $sanitized[] = $sub_value;
                 }
             }
+
             return implode( ' | ', array_filter( $sanitized, 'strlen' ) );
         }
 

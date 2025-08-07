@@ -420,24 +420,65 @@ class Taxnexcy_FluentForms {
      */
     public function display_email_meta_table( $order, $sent_to_admin, $plain_text, $email ) {
         $fields = $this->get_ff_fields( $order );
-        if ( ! $fields ) {
+        $tables = array();
+
+        foreach ( $order->get_meta_data() as $meta ) {
+            if ( substr( $meta->key, -5 ) === '_html' ) {
+                $tables[] = $meta;
+            }
+        }
+
+        if ( ! $fields && ! $tables ) {
             return;
         }
 
-        if ( ! $plain_text ) {
-            echo '<h3>' . esc_html__( 'Fluent Forms Answers', 'taxnexcy' ) . '</h3>';
-            echo '<table cellspacing="0" cellpadding="6" style="width:100%; border:1px solid #eee;" border="1">';
-            echo '<thead><tr><th style="text-align:left;">' . esc_html__( 'Question', 'taxnexcy' ) . '</th><th style="text-align:left;">' . esc_html__( 'Answer', 'taxnexcy' ) . '</th></tr></thead>';
-            echo '<tbody>';
-            foreach ( $fields as $field ) {
-                printf( '<tr><td style="text-align:left;">%s</td><td style="text-align:left;">%s</td></tr>', esc_html( $field['label'] ), esc_html( $field['value'] ) );
-            }
-            echo '</tbody></table>';
-        } else {
+        /* ---------- 1. Plain-text version ---------- */
+        if ( $plain_text ) {
             echo "\n" . __( 'Fluent Forms Answers', 'taxnexcy' ) . ":\n";
+
+            // Simple fields
             foreach ( $fields as $field ) {
                 echo $field['label'] . ': ' . $field['value'] . "\n";
             }
+
+            // Repeater tables — show after a blank line
+            foreach ( $tables as $meta ) {
+                $label = $order->get_meta( 'taxnexcy_label_' . substr( $meta->key, 9, -5 ), true );
+                $label = $label ?: ucfirst( substr( $meta->key, 9, -5 ) );
+                echo "\n" . $label . ":\n" . strip_tags( $meta->value ) . "\n";
+            }
+
+            return; // done with plain text
+        }
+
+        /* ---------- 2. HTML version ---------- */
+        echo '<h3>' . esc_html__( 'Fluent Forms Answers', 'taxnexcy' ) . '</h3>';
+
+        // a) simple fields
+        echo '<table cellspacing="0" cellpadding="6" style="width:100%; border:1px solid #eee;" border="1">';
+        echo '<thead><tr><th style="text-align:left;">' .
+             esc_html__( 'Question', 'taxnexcy' ) .
+             '</th><th style="text-align:left;">' .
+             esc_html__( 'Answer',   'taxnexcy' ) .
+             '</th></tr></thead><tbody>';
+
+        foreach ( $fields as $field ) {
+            printf(
+                '<tr><td style="text-align:left;">%s</td><td style="text-align:left;">%s</td></tr>',
+                esc_html( $field['label'] ),
+                esc_html( $field['value'] )
+            );
+        }
+        echo '</tbody></table>';
+
+        // b) repeater tables
+        foreach ( $tables as $meta ) {
+            $label = $order->get_meta( 'taxnexcy_label_' . substr( $meta->key, 9, -5 ), true );
+            $label = $label ?: ucfirst( substr( $meta->key, 9, -5 ) );
+
+            echo '<h4 style="margin-top:1em;">' . esc_html( $label ) . '</h4>';
+            // already sanitised with wp_kses_post() when saved
+            echo $meta->value;
         }
     }
 

@@ -203,15 +203,24 @@ class Taxnexcy_FluentForms {
                 $label = $field['settings']['admin_field_label']
                     ?: ( $field['settings']['label'] ?? ( $field['label'] ?? '' ) );
                 if ( $name ) {
-                    if ( in_array( $field['element'] ?? '', array( 'input_repeat', 'repeat_container' ), true ) && ! empty( $field['fields'] ) ) {
+                    if ( in_array( $field['element'] ?? '', array( 'input_repeat', 'repeat_container' ), true ) ) {
                         $labels[ $name ] = array( '__label' => sanitize_text_field( $label ) );
-                        foreach ( $field['fields'] as $child ) {
-                            $child_name  = sanitize_key( $child['name'] ?? ( $child['attributes']['name'] ?? '' ) );
+
+                        $children = array();
+                        if ( ! empty( $field['fields'] ) && is_array( $field['fields'] ) ) {
+                            $children = $field['fields'];
+                        } elseif ( ! empty( $field['columns'] ) && is_array( $field['columns'] ) ) {
+                            foreach ( $field['columns'] as $column ) {
+                                if ( ! empty( $column['fields'] ) && is_array( $column['fields'] ) ) {
+                                    $children = array_merge( $children, $column['fields'] );
+                                }
+                            }
+                        }
+
+                        foreach ( $children as $child ) {
                             $child_label = $child['settings']['admin_field_label']
                                 ?: ( $child['settings']['label'] ?? ( $child['label'] ?? '' ) );
-                            if ( $child_name ) {
-                                $labels[ $name ][ $child_name ] = sanitize_text_field( $child_label );
-                            }
+                            $labels[ $name ][] = sanitize_text_field( $child_label );
                         }
                     } else {
                         $labels[ $name ] = sanitize_text_field( $label );

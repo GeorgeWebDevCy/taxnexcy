@@ -16,7 +16,7 @@
  * Plugin Name:       Taxnex Cyprus
  * Plugin URI:        https://georgenicolaou.me/taxnexcy
  * Description:       Creates WooCommerce user from FluentForms submission and redirects to checkout
- * Version:           1.7.34
+ * Version:           1.7.35
  * Author:            George Nicolaou
  * Author URI:        https://georgenicolaou.me/
  * License:           GPL-2.0+
@@ -35,7 +35,7 @@ if ( ! defined( 'WPINC' ) ) {
  * Start at version 1.0.0 and use SemVer - https://semver.org
  * Rename this for your plugin and update it as you release new versions.
  */
-define( 'TAXNEXCY_VERSION', '1.7.34' );
+define( 'TAXNEXCY_VERSION', '1.7.35' );
 
 /**
  * Map Fluent Forms IDs to WooCommerce product IDs.
@@ -130,6 +130,50 @@ function taxnexcy_product_mapping( $default, $form, $form_data ) {
     }
 
     return $default;
+}
+
+/**
+ * Turn a Fluent Forms repeater into an HTML table.
+ *
+ * @param array $rows      Repeater rows exactly as they come from $form_data[ $slug ].
+ * @param array $field_map Map [ slug => 'Pretty label' ] for the repeater’s child fields.
+ * @param array $atts      Optional: <table> attributes (class, style …).
+ * @return string          Ready-to-echo HTML.
+ */
+function taxnexcy_render_repeater_table( array $rows, array $field_map, array $atts = array() ) {
+    if ( empty( $rows ) || ! is_array( $rows[0] ?? null ) ) {
+        return '';
+    }
+
+    $attr_str = '';
+    foreach ( $atts as $name => $value ) {
+        $attr_str .= sprintf( ' %s="%s"', esc_attr( $name ), esc_attr( $value ) );
+    }
+
+    $columns = array_keys( $rows[0] );
+
+    ob_start();
+    ?>
+    <table<?php echo $attr_str; ?>>
+        <thead>
+            <tr>
+                <?php foreach ( $columns as $slug ) : ?>
+                    <th><?php echo esc_html( $field_map[ $slug ] ?? $slug ); ?></th>
+                <?php endforeach; ?>
+            </tr>
+        </thead>
+        <tbody>
+            <?php foreach ( $rows as $row ) : ?>
+                <tr>
+                    <?php foreach ( $columns as $slug ) : ?>
+                        <td><?php echo esc_html( $row[ $slug ] ?? '' ); ?></td>
+                    <?php endforeach; ?>
+                </tr>
+            <?php endforeach; ?>
+        </tbody>
+    </table>
+    <?php
+    return ob_get_clean();
 }
 add_filter( 'taxnexcy_product_id', 'taxnexcy_product_mapping', 10, 3 );
 

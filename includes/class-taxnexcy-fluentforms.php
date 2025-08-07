@@ -43,7 +43,7 @@ class Taxnexcy_FluentForms {
     * @return string HTML for the rendered entry.
      */
     private function render_entry_html( $form_id, $entry_id ) {
-        if ( ! class_exists( '\\FluentForm\\App\\Services\\Submission\\SubmissionService' ) ) {
+        if ( ! class_exists( '\FluentForm\App\Services\Submission\SubmissionService' ) ) {
             Taxnexcy_Logger::log( 'SubmissionService class not found' );
             return '';
         }
@@ -51,11 +51,24 @@ class Taxnexcy_FluentForms {
         $service = new SubmissionService();
 
         try {
-            return $service->renderSubmission( $entry_id );
+            if ( method_exists( $service, 'renderSubmission' ) ) {
+                try {
+                    return $service->renderSubmission( $entry_id, $form_id );
+                } catch ( \ArgumentCountError $e ) {
+                    return $service->renderSubmission( $entry_id );
+                }
+            } elseif ( method_exists( $service, 'renderEntry' ) ) {
+                try {
+                    return $service->renderEntry( $entry_id, $form_id );
+                } catch ( \ArgumentCountError $e ) {
+                    return $service->renderEntry( $entry_id );
+                }
+            }
         } catch ( \Throwable $e ) {
             Taxnexcy_Logger::log( 'Failed to render submission: ' . $e->getMessage() );
-            return '';
         }
+
+        return '';
     }
 
     /**

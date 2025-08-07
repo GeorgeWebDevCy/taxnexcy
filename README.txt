@@ -4,7 +4,7 @@ Donate link: https://georgenicolaou.me/
 Tags: fluentforms, woocommerce, jcc
 Requires at least: 5.0
 Tested up to: 6.5
-Stable tag: 1.7.43
+Stable tag: 1.7.44
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -23,6 +23,9 @@ Taxnex Cyprus checks for updates on its public GitHub repository, so no
 authentication token is required.
 
 == Changelog ==
+= 1.7.44 =
+* Call Fluent Forms' renderer with the correct argument order across versions and remove legacy fallback tables.
+
 = 1.7.43 =
 * Render Fluent Forms entries using their internal renderer for full entry details.
 

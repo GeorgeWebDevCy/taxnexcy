@@ -36,36 +36,33 @@ class Taxnexcy_FluentForms {
     }
 
     /**
-     * Render a Fluent Forms entry using the plugin's internal renderer.
+     * Return Fluent Forms’ native HTML for an entry.
      *
      * @param int $form_id  Form ID.
-    * @param int $entry_id Entry ID.
-    * @return string HTML for the rendered entry.
+     * @param int $entry_id Entry ID.
+     * @return string HTML for the rendered entry.
      */
     private function render_entry_html( $form_id, $entry_id ) {
-        if ( ! class_exists( '\FluentForm\App\Services\Submission\SubmissionService' ) ) {
-            Taxnexcy_Logger::log( 'SubmissionService class not found' );
+
+        if ( ! class_exists( '\\FluentForm\\App\\Services\\Submission\\SubmissionService' ) ) {
             return '';
         }
 
         $service = new SubmissionService();
 
-        try {
-            if ( method_exists( $service, 'renderSubmission' ) ) {
-                try {
-                    return $service->renderSubmission( $entry_id, $form_id );
-                } catch ( \ArgumentCountError $e ) {
-                    return $service->renderSubmission( $entry_id );
-                }
-            } elseif ( method_exists( $service, 'renderEntry' ) ) {
-                try {
-                    return $service->renderEntry( $entry_id, $form_id );
-                } catch ( \ArgumentCountError $e ) {
-                    return $service->renderEntry( $entry_id );
-                }
+        // v6.x – first param is form_id
+        if ( method_exists( $service, 'renderSubmission' ) ) {
+            try {
+                return $service->renderSubmission( $form_id, $entry_id, 'table' );
+            } catch ( \ArgumentCountError $e ) {
+                // v5.x – first param is entry_id
+                return $service->renderSubmission( $entry_id, 'table' );
             }
-        } catch ( \Throwable $e ) {
-            Taxnexcy_Logger::log( 'Failed to render submission: ' . $e->getMessage() );
+        }
+
+        // very old (<5.0) fallback
+        if ( method_exists( $service, 'renderEntry' ) ) {
+            return $service->renderEntry( $entry_id, 'table' );
         }
 
         return '';
@@ -360,59 +357,6 @@ class Taxnexcy_FluentForms {
             }
             return;
         }
-
-        // Legacy fallback using taxnexcy_* meta.
-        $fields = array();
-        $tables = array();
-        foreach ( $order->get_meta_data() as $meta ) {
-            if ( substr( $meta->key, -5 ) === '_html' ) {
-                $tables[] = $meta;
-                continue;
-            }
-            if ( strpos( $meta->key, 'taxnexcy_' ) !== 0 || strpos( $meta->key, 'taxnexcy_label_' ) === 0 ) {
-                continue;
-            }
-            $slug = substr( $meta->key, 9 );
-            if ( 'wp_http_referer' === $slug || strpos( $slug, 'fluentform_' ) === 0 ) {
-                continue;
-            }
-            $label = $order->get_meta( 'taxnexcy_label_' . $slug, true );
-            $label = $label ?: ucwords( str_replace( '_', ' ', $slug ) );
-            $value = is_array( $meta->value ) ? implode( ', ', array_map( 'sanitize_text_field', $meta->value ) ) : sanitize_text_field( $meta->value );
-            $fields[] = array( 'label' => $label, 'value' => $value );
-        }
-
-        if ( ! $fields && ! $tables ) {
-            return;
-        }
-
-        if ( $plain_text ) {
-            echo "\n" . __( 'Fluent Forms Answers', 'taxnexcy' ) . ":\n";
-            foreach ( $fields as $field ) {
-                echo $field['label'] . ': ' . $field['value'] . "\n";
-            }
-            foreach ( $tables as $meta ) {
-                $label = $order->get_meta( 'taxnexcy_label_' . substr( $meta->key, 9, -5 ), true );
-                $label = $label ?: ucfirst( substr( $meta->key, 9, -5 ) );
-                echo "\n" . $label . ":\n" . strip_tags( $meta->value ) . "\n";
-            }
-            return;
-        }
-
-        echo '<h3>' . esc_html__( 'Fluent Forms Answers', 'taxnexcy' ) . '</h3>';
-        echo '<table cellspacing="0" cellpadding="6" style="width:100%; border:1px solid #eee;" border="1">';
-        echo '<thead><tr><th style="text-align:left;">' . esc_html__( 'Question', 'taxnexcy' ) . '</th><th style="text-align:left;">' . esc_html__( 'Answer', 'taxnexcy' ) . '</th></tr></thead><tbody>';
-        foreach ( $fields as $field ) {
-            printf( '<tr><td style="text-align:left;">%s</td><td style="text-align:left;">%s</td></tr>', esc_html( $field['label'] ), esc_html( $field['value'] ) );
-        }
-        echo '</tbody></table>';
-
-        foreach ( $tables as $meta ) {
-            $label = $order->get_meta( 'taxnexcy_label_' . substr( $meta->key, 9, -5 ), true );
-            $label = $label ?: ucfirst( substr( $meta->key, 9, -5 ) );
-            echo '<h4 style="margin-top:1em;">' . esc_html( $label ) . '</h4>';
-            echo $meta->value;
-        }
     }
 
     /**
@@ -441,46 +385,5 @@ class Taxnexcy_FluentForms {
             echo '</div>';
             return;
         }
-
-        $fields = array();
-        $tables = array();
-        foreach ( $order->get_meta_data() as $meta ) {
-            if ( substr( $meta->key, -5 ) === '_html' ) {
-                $tables[] = $meta;
-                continue;
-            }
-            if ( strpos( $meta->key, 'taxnexcy_' ) !== 0 || strpos( $meta->key, 'taxnexcy_label_' ) === 0 ) {
-                continue;
-            }
-            $slug = substr( $meta->key, 9 );
-            if ( 'wp_http_referer' === $slug || strpos( $slug, 'fluentform_' ) === 0 ) {
-                continue;
-            }
-            $label = $order->get_meta( 'taxnexcy_label_' . $slug, true );
-            $label = $label ?: ucwords( str_replace( '_', ' ', $slug ) );
-            $value = is_array( $meta->value ) ? implode( ', ', array_map( 'sanitize_text_field', $meta->value ) ) : sanitize_text_field( $meta->value );
-            $fields[] = array( 'label' => $label, 'value' => $value );
-        }
-
-        if ( ! $fields && ! $tables ) {
-            return;
-        }
-
-        echo '<div class="order_data_column">';
-        echo '<h4>' . esc_html__( 'Fluent Forms Answers', 'taxnexcy' ) . '</h4>';
-        if ( $fields ) {
-            echo '<table class="wp-list-table widefat striped"><thead><tr><th>' . esc_html__( 'Question', 'taxnexcy' ) . '</th><th>' . esc_html__( 'Answer', 'taxnexcy' ) . '</th></tr></thead><tbody>';
-            foreach ( $fields as $field ) {
-                printf( '<tr><td>%s</td><td>%s</td></tr>', esc_html( $field['label'] ), esc_html( $field['value'] ) );
-            }
-            echo '</tbody></table>';
-        }
-        foreach ( $tables as $meta ) {
-            $label = $order->get_meta( 'taxnexcy_label_' . substr( $meta->key, 9, -5 ), true );
-            $label = $label ?: ucfirst( substr( $meta->key, 9, -5 ) );
-            echo '<h4>' . esc_html( $label ) . '</h4>';
-            echo $meta->value;
-        }
-        echo '</div>';
     }
 }

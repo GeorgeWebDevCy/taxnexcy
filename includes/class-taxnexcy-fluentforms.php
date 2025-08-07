@@ -33,6 +33,8 @@ class Taxnexcy_FluentForms {
         add_action( 'woocommerce_email_order_meta', array( $this, 'display_email_entry' ), 10, 4 );
         add_action( 'woocommerce_admin_order_data_after_order_details', array( $this, 'display_admin_meta_fields' ), 15 );
         add_action( 'woocommerce_checkout_create_order', array( $this, 'add_session_fields_to_order' ), 10, 2 );
+        add_action( 'woocommerce_checkout_order_processed', array( $this, 'generate_entry_pdf' ), 10, 3 );
+        add_filter( 'woocommerce_email_attachments', array( $this, 'attach_pdf_to_email' ), 10, 4 );
     }
 
     /**
@@ -385,5 +387,96 @@ class Taxnexcy_FluentForms {
             echo '</div>';
             return;
         }
+    }
+
+    /**
+     * Generate a PDF for the stored Fluent Form entry after checkout.
+     *
+     * @param int      $order_id Order ID.
+     * @param array    $posted_data Posted checkout data.
+     * @param WC_Order $order Order object.
+     */
+    public function generate_entry_pdf( $order_id, $posted_data, $order ) {
+        if ( ! $order instanceof \WC_Order ) {
+            $order = wc_get_order( $order_id );
+        }
+
+        if ( ! $order ) {
+            return;
+        }
+
+        $form_id  = (int) $order->get_meta( '_ff_form_id', true );
+        $entry_id = (int) $order->get_meta( '_ff_entry_id', true );
+
+        if ( ! $form_id || ! $entry_id ) {
+            return;
+        }
+
+        $pdf_path = $this->create_entry_pdf( $form_id, $entry_id );
+
+        if ( $pdf_path && file_exists( $pdf_path ) ) {
+            $order->update_meta_data( '_ff_entry_pdf', $pdf_path );
+            $order->save();
+
+            $upload_dir = wp_get_upload_dir();
+            if ( ! empty( $upload_dir['basedir'] ) && ! empty( $upload_dir['baseurl'] ) ) {
+                $pdf_url = str_replace( $upload_dir['basedir'], $upload_dir['baseurl'], $pdf_path );
+                $order->add_order_note( sprintf( __( 'Fluent Form entry PDF: %s', 'taxnexcy' ), esc_url( $pdf_url ) ) );
+            }
+        }
+    }
+
+    /**
+     * Try to generate a PDF file for the given entry.
+     *
+     * @param int $form_id  Form ID.
+     * @param int $entry_id Entry ID.
+     * @return string Path to generated PDF or empty string.
+     */
+    private function create_entry_pdf( $form_id, $entry_id ) {
+        try {
+            if ( class_exists( '\\FluentFormPdf\\Classes\\PdfGenerator' ) ) {
+                $generator = new \FluentFormPdf\Classes\PdfGenerator();
+                return $generator->generate( $entry_id, $form_id );
+            }
+
+            if ( function_exists( 'fluentform_pdf_generate' ) ) {
+                return fluentform_pdf_generate( $form_id, $entry_id );
+            }
+        } catch ( \Throwable $e ) {
+            Taxnexcy_Logger::log( 'PDF generation failed: ' . $e->getMessage() );
+        }
+
+        Taxnexcy_Logger::log( 'PDF generator unavailable for entry ' . $entry_id );
+        return '';
+    }
+
+    /**
+     * Attach generated PDF to WooCommerce emails.
+     *
+     * @param array        $attachments Existing attachments.
+     * @param string       $email_id    Email identifier.
+     * @param WC_Order|bool $order       Order object or false.
+     * @param object       $email       Email object.
+     * @return array Modified attachments.
+     */
+    public function attach_pdf_to_email( $attachments, $email_id, $order, $email ) {
+        if ( ! $order instanceof \WC_Order ) {
+            return $attachments;
+        }
+
+        $pdf_path = $order->get_meta( '_ff_entry_pdf', true );
+
+        if ( ! $pdf_path || ! file_exists( $pdf_path ) ) {
+            return $attachments;
+        }
+
+        $allowed_emails = array( 'new_order', 'customer_processing_order', 'customer_completed_order' );
+
+        if ( in_array( $email_id, $allowed_emails, true ) ) {
+            $attachments[] = $pdf_path;
+        }
+
+        return $attachments;
     }
 }

@@ -33,6 +33,7 @@ Alternatively, set an environment variable named `TAXNEXCY_GITHUB_TOKEN`.
 = 1.7.40 =
 * Preserve the field order defined in field maps when rendering repeater tables.
 
+* Avoid fatal errors when WooCommerce is inactive by checking required functions before redirecting to checkout.
 = 1.7.39 =
 * Prevent fatal errors when Fluent Forms' SubmissionService class is missing.
 

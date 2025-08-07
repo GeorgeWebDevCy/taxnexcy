@@ -235,6 +235,10 @@ class Taxnexcy_FluentForms {
      */
     public function maybe_redirect_to_payment( $response, $form_data, $form ) {
         Taxnexcy_Logger::log( 'maybe_redirect_to_payment triggered. Raw data: ' . wp_json_encode( $form_data ) );
+        if ( ! function_exists( 'wc_get_product' ) || ! function_exists( 'wc_get_checkout_url' ) ) {
+            Taxnexcy_Logger::log( 'WooCommerce functions unavailable for redirect' );
+            return $response;
+        }
 
         $product_id = apply_filters( 'taxnexcy_product_id', 0, $form, $form_data );
         $product    = wc_get_product( $product_id );

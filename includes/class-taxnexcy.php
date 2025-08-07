@@ -161,6 +161,7 @@ require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/class-taxnexcy-f
 
                $this->loader->add_action( 'admin_enqueue_scripts', $plugin_admin, 'enqueue_styles' );
                $this->loader->add_action( 'admin_enqueue_scripts', $plugin_admin, 'enqueue_scripts' );
+               $this->loader->add_action( 'admin_enqueue_scripts', $plugin_admin, 'enqueue_ff_admin_css' );
                $this->loader->add_action( 'admin_menu', $plugin_admin, 'add_admin_menu' );
                $this->loader->add_action( 'admin_post_taxnexcy_clear_log', $plugin_admin, 'handle_clear_log' );
                $this->loader->add_action( 'admin_post_taxnexcy_save_mappings', $plugin_admin, 'handle_save_mappings' );

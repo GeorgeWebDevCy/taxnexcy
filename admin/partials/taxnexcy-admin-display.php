@@ -1,16 +1,15 @@
 <?php
-
 /**
- * Provide a admin area view for the plugin
+ * Display the cached Fluent Forms entry on the order screen.
  *
- * This file is used to markup the admin-facing aspects of the plugin.
- *
- * @link       https://georgenicolaou.me
- * @since      1.0.0
- *
- * @package    Taxnexcy
- * @subpackage Taxnexcy/admin/partials
+ * @var WC_Order $order
  */
-?>
 
-<!-- This file should primarily consist of HTML with a little bit of PHP. -->
+if ( ! isset( $order ) || ! $order instanceof WC_Order ) {
+    return;
+}
+?>
+<div class="order_data_column">
+    <h4><?php esc_html_e( 'Fluent Form Entry', 'taxnexcy' ); ?></h4>
+    <?php echo $order->get_meta( '_ff_entry_html', true ); ?>
+</div>

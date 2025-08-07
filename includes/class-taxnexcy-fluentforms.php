@@ -1,5 +1,6 @@
 <?php
 use FluentForm\App\Modules\Form\FormFieldsParser;
+use FluentForm\App\Services\Submission\SubmissionService;
 /**
  * Handle Fluent Forms submissions.
  *
@@ -29,71 +30,21 @@ class Taxnexcy_FluentForms {
         // Fallback filter name used by some Fluent Forms versions.
         add_filter( 'fluentform_submit_response', array( $this, 'maybe_redirect_to_payment' ), 10, 3 );
         Taxnexcy_Logger::log( 'Redirect filters registered' );
-        add_action( 'woocommerce_email_order_meta', array( $this, 'display_email_meta_table' ), 10, 4 );
+        add_action( 'woocommerce_email_order_meta', array( $this, 'display_email_entry' ), 10, 4 );
         add_action( 'woocommerce_admin_order_data_after_order_details', array( $this, 'display_admin_meta_fields' ), 15 );
         add_action( 'woocommerce_checkout_create_order', array( $this, 'add_session_fields_to_order' ), 10, 2 );
     }
 
     /**
-     * Sanitize a field value recursively.
+     * Render a Fluent Forms entry using the plugin's internal renderer.
      *
-     * Fluent Forms repeater fields submit nested arrays which would otherwise
-     * be stored as the string "Array" in order meta. This helper flattens any
-     * nested values into a readable string so they can be displayed in emails
-     * and the admin screens.
-     *
-     * @param mixed $value  Field value.
-     * @param array $labels Optional field labels indexed by field slug.
-     * @return string Sanitized value.
+     * @param int $form_id  Form ID.
+     * @param int $entry_id Entry ID.
+     * @return string HTML for the rendered entry.
      */
-    private function sanitize_field_value( $value, $labels = array() ) {
-        if ( is_array( $value ) ) {
-            $sanitized   = array();
-            $is_numeric  = array_keys( $value ) === range( 0, count( $value ) - 1 );
-            $label_index = array_values( $labels );
-
-            foreach ( $value as $key => $sub_value ) {
-                // If this is a repeater row (numeric keys, nested arrays) reuse the same labels for each row.
-                if ( $is_numeric && is_array( $sub_value ) && ! isset( $labels[ $key ] ) ) {
-                    $sanitized[] = $this->sanitize_field_value( $sub_value, $labels );
-                    continue;
-                }
-
-                $sub_labels = array();
-                $label      = '';
-
-                if ( isset( $labels[ $key ] ) ) {
-                    if ( is_array( $labels[ $key ] ) ) {
-                        $sub_labels = $labels[ $key ];
-                    } else {
-                        $label = $labels[ $key ];
-                    }
-                } elseif ( $is_numeric && isset( $label_index[ $key ] ) ) {
-                    if ( is_array( $label_index[ $key ] ) ) {
-                        $sub_labels = $label_index[ $key ];
-                    } else {
-                        $label = $label_index[ $key ];
-                    }
-                }
-
-                $sub_value = $this->sanitize_field_value( $sub_value, $sub_labels );
-
-                if ( $label ) {
-                    $sanitized[] = sanitize_text_field( $label ) . ': ' . $sub_value;
-                } elseif ( $is_numeric && ! empty( $labels ) ) {
-                    $fallback_label = isset( $label_index[ $key ] ) ? $label_index[ $key ] : $key + 1;
-                    $sanitized[]   = sanitize_text_field( $fallback_label ) . ': ' . $sub_value;
-                } elseif ( is_string( $key ) && $key !== '' && ! is_numeric( $key ) ) {
-                    $sanitized[] = sanitize_text_field( $key ) . ': ' . $sub_value;
-                } else {
-                    $sanitized[] = $sub_value;
-                }
-            }
-
-            return implode( ' | ', array_filter( $sanitized, 'strlen' ) );
-        }
-
-        return sanitize_text_field( $value );
+    private function render_entry_html( $form_id, $entry_id ) {
+        $service = new SubmissionService();
+        return $service->renderSubmission( $entry_id, 'table' );
     }
 
     /**
@@ -229,8 +180,7 @@ class Taxnexcy_FluentForms {
             }
         }
 
-        $fields = array();
-        $tables = array();
+        $legacy_fields = array();
         foreach ( $form_data as $key => $value ) {
             $raw_key       = $key;
             $sanitized_key = sanitize_key( $raw_key );
@@ -245,38 +195,22 @@ class Taxnexcy_FluentForms {
                 continue;
             }
 
-            $field_labels  = $labels[ $base_key ] ?? array();
-            $nested_labels = is_array( $field_labels ) ? $field_labels : array();
-            if ( is_array( $nested_labels ) ) {
-                unset( $nested_labels['__label'] );
-            }
+            $field_labels = $labels[ $base_key ] ?? '';
+            $field_label  = is_array( $field_labels ) ? ( $field_labels['__label'] ?? ucwords( str_replace( '_', ' ', $sanitized_key ) ) ) : ( $field_labels ?: ucwords( str_replace( '_', ' ', $sanitized_key ) ) );
 
-            if ( function_exists( 'taxnexcy_render_repeater_table' ) && is_array( $value ) && is_array( $value[0] ?? null ) ) {
-                $tables[ $sanitized_key ] = taxnexcy_render_repeater_table(
-                    $value,
-                    $nested_labels,
-                    array(
-                        'style' => 'width:100%;border-collapse:collapse;border:1px solid #ddd;font-size:14px;',
-                        'class' => 'taxnexcy-repeater',
-                    )
-                );
-            }
-
-            $value       = $this->sanitize_field_value( $value, $nested_labels );
-            $field_label = is_array( $field_labels ) ? ( $field_labels['__label'] ?? ucwords( str_replace( '_', ' ', $sanitized_key ) ) ) : ( $field_labels ?: ucwords( str_replace( '_', ' ', $sanitized_key ) ) );
-
-            $fields[] = array(
+            $legacy_fields[] = array(
                 'slug'  => $sanitized_key,
                 'label' => $field_label,
-                'value' => $value,
+                'value' => is_array( $value ) ? wp_json_encode( $value ) : sanitize_text_field( $value ),
             );
         }
 
         if ( function_exists( 'WC' ) && WC()->session ) {
-            WC()->session->set( 'taxnexcy_fields', $fields );
-            WC()->session->set( 'taxnexcy_repeater_tables', $tables );
-            Taxnexcy_Logger::log( 'Stored fields in session: ' . wp_json_encode( $fields ) );
-            Taxnexcy_Logger::log( 'Stored repeater tables in session: ' . wp_json_encode( array_keys( $tables ) ) );
+            WC()->session->set( 'taxnexcy_fields', $legacy_fields );
+            WC()->session->set( '_ff_form_id', absint( $form['id'] ?? 0 ) );
+            WC()->session->set( '_ff_entry_id', absint( $entry_id ) );
+            WC()->session->set( '_ff_entry_html', $this->render_entry_html( $form['id'], $entry_id ) );
+            Taxnexcy_Logger::log( 'Stored fields in session: ' . wp_json_encode( $legacy_fields ) );
         }
     }
 
@@ -343,162 +277,154 @@ class Taxnexcy_FluentForms {
             return;
         }
 
-        $fields = WC()->session->get( 'taxnexcy_fields' );
-        if ( ! $fields ) {
-            return;
-        }
+        $fields   = WC()->session->get( 'taxnexcy_fields' );
+        $form_id  = WC()->session->get( '_ff_form_id' );
+        $entry_id = WC()->session->get( '_ff_entry_id' );
+        $html     = WC()->session->get( '_ff_entry_html' );
 
-        foreach ( $fields as $field ) {
-            $order->update_meta_data( 'taxnexcy_' . $field['slug'], $field['value'] );
-            $order->update_meta_data( 'taxnexcy_label_' . $field['slug'], $field['label'] );
-        }
-
-        $tables = WC()->session->get( 'taxnexcy_repeater_tables' );
-        if ( $tables ) {
-            foreach ( $tables as $slug => $html ) {
-                if ( $html ) {
-                    $order->update_meta_data( 'taxnexcy_' . $slug . '_html', wp_kses_post( $html ) );
-                }
+        if ( $fields ) {
+            foreach ( $fields as $field ) {
+                $order->update_meta_data( 'taxnexcy_' . $field['slug'], $field['value'] );
+                $order->update_meta_data( 'taxnexcy_label_' . $field['slug'], $field['label'] );
             }
         }
 
+        if ( $form_id && $entry_id && $html ) {
+            $order->update_meta_data( '_ff_form_id', (int) $form_id );
+            $order->update_meta_data( '_ff_entry_id', (int) $entry_id );
+            $order->update_meta_data( '_ff_entry_html', wp_kses_post( $html ) );
+        }
+
         WC()->session->set( 'taxnexcy_fields', null );
-        WC()->session->set( 'taxnexcy_repeater_tables', null );
+        WC()->session->set( '_ff_form_id', null );
+        WC()->session->set( '_ff_entry_id', null );
+        WC()->session->set( '_ff_entry_html', null );
         Taxnexcy_Logger::log( 'Added session fields to order ' . $order->get_id() );
     }
 
     /**
-     * Build an array of [label, value] pairs from Taxnexcy order meta.
-     *
-     * @param WC_Order $order Order object.
-     * @return array
-     */
-    public function get_ff_fields( $order ) {
-        $fields = array();
-        foreach ( $order->get_meta_data() as $meta ) {
-            // Only Taxnexcy fields and skip the stored labels or HTML tables.
-            if ( strpos( $meta->key, 'taxnexcy_' ) !== 0 || strpos( $meta->key, 'taxnexcy_label_' ) === 0 || substr( $meta->key, -5 ) === '_html' ) {
-                continue;
-            }
-
-            $slug  = substr( $meta->key, 9 );
-            $label = $order->get_meta( 'taxnexcy_label_' . $slug, true );
-
-            // Skip common hidden Fluent Forms fields.
-            if ( in_array( $slug, array( 'wp_http_referer', 'fluentform_nonce', 'fluentform_id', 'fluentform_embed_post_id', 'fluentform_embded_post_id' ), true ) ||
-                preg_match( '/^fluentform_\d+_fluentformnonce$/', $slug ) ) {
-                continue;
-            }
-
-            if ( ! $label ) {
-                $label = ucwords( str_replace( '_', ' ', $slug ) );
-            }
-
-            $value = $meta->value;
-            if ( is_array( $value ) ) {
-                $value = $this->sanitize_field_value( $value );
-            } else {
-                $value = sanitize_text_field( $value );
-            }
-
-            $fields[] = array(
-                'label' => $label,
-                'value' => $value,
-            );
-        }
-
-        return $fields;
-    }
-
-    /**
-     * Output Fluent Form data as a table in WooCommerce emails.
+     * Output Fluent Form entry in WooCommerce emails.
      *
      * @param WC_Order $order      The order object.
      * @param bool     $sent_to_admin If email is sent to admin.
      * @param bool     $plain_text Whether the email is plain text.
      * @param object   $email      Email object.
      */
-    public function display_email_meta_table( $order, $sent_to_admin, $plain_text, $email ) {
-        $fields = $this->get_ff_fields( $order );
-        $tables = array();
+    public function display_email_entry( $order, $sent_to_admin, $plain_text, $email ) {
+        $html = $order->get_meta( '_ff_entry_html', true );
+        if ( $html ) {
+            if ( $plain_text ) {
+                echo "\n" . __( 'Fluent Form Entry', 'taxnexcy' ) . ":\n";
+                echo wp_strip_all_tags( $html ) . "\n";
+            } else {
+                echo '<h3>' . esc_html__( 'Fluent Form Entry', 'taxnexcy' ) . '</h3>';
+                echo $html;
+            }
+            return;
+        }
 
+        // Legacy fallback using taxnexcy_* meta.
+        $fields = array();
+        $tables = array();
         foreach ( $order->get_meta_data() as $meta ) {
             if ( substr( $meta->key, -5 ) === '_html' ) {
                 $tables[] = $meta;
+                continue;
             }
+            if ( strpos( $meta->key, 'taxnexcy_' ) !== 0 || strpos( $meta->key, 'taxnexcy_label_' ) === 0 ) {
+                continue;
+            }
+            $slug  = substr( $meta->key, 9 );
+            $label = $order->get_meta( 'taxnexcy_label_' . $slug, true );
+            $label = $label ?: ucwords( str_replace( '_', ' ', $slug ) );
+            $value = is_array( $meta->value ) ? implode( ', ', array_map( 'sanitize_text_field', $meta->value ) ) : sanitize_text_field( $meta->value );
+            $fields[] = array( 'label' => $label, 'value' => $value );
         }
 
         if ( ! $fields && ! $tables ) {
             return;
         }
 
-        /* ---------- 1. Plain-text version ---------- */
         if ( $plain_text ) {
             echo "\n" . __( 'Fluent Forms Answers', 'taxnexcy' ) . ":\n";
-
-            // Simple fields
             foreach ( $fields as $field ) {
                 echo $field['label'] . ': ' . $field['value'] . "\n";
             }
-
-            // Repeater tables — show after a blank line
             foreach ( $tables as $meta ) {
                 $label = $order->get_meta( 'taxnexcy_label_' . substr( $meta->key, 9, -5 ), true );
                 $label = $label ?: ucfirst( substr( $meta->key, 9, -5 ) );
                 echo "\n" . $label . ":\n" . strip_tags( $meta->value ) . "\n";
             }
-
-            return; // done with plain text
+            return;
         }
 
-        /* ---------- 2. HTML version ---------- */
         echo '<h3>' . esc_html__( 'Fluent Forms Answers', 'taxnexcy' ) . '</h3>';
-
-        // a) simple fields
         echo '<table cellspacing="0" cellpadding="6" style="width:100%; border:1px solid #eee;" border="1">';
-        echo '<thead><tr><th style="text-align:left;">' .
-             esc_html__( 'Question', 'taxnexcy' ) .
-             '</th><th style="text-align:left;">' .
-             esc_html__( 'Answer',   'taxnexcy' ) .
-             '</th></tr></thead><tbody>';
-
+        echo '<thead><tr><th style="text-align:left;">' . esc_html__( 'Question', 'taxnexcy' ) . '</th><th style="text-align:left;">' . esc_html__( 'Answer', 'taxnexcy' ) . '</th></tr></thead><tbody>';
         foreach ( $fields as $field ) {
-            printf(
-                '<tr><td style="text-align:left;">%s</td><td style="text-align:left;">%s</td></tr>',
-                esc_html( $field['label'] ),
-                esc_html( $field['value'] )
-            );
+            printf( '<tr><td style="text-align:left;">%s</td><td style="text-align:left;">%s</td></tr>', esc_html( $field['label'] ), esc_html( $field['value'] ) );
         }
         echo '</tbody></table>';
 
-        // b) repeater tables
         foreach ( $tables as $meta ) {
             $label = $order->get_meta( 'taxnexcy_label_' . substr( $meta->key, 9, -5 ), true );
             $label = $label ?: ucfirst( substr( $meta->key, 9, -5 ) );
-
             echo '<h4 style="margin-top:1em;">' . esc_html( $label ) . '</h4>';
-            // already sanitised with wp_kses_post() when saved
             echo $meta->value;
         }
     }
 
     /**
-     * Display Fluent Forms data in the WooCommerce admin order screen.
+     * Display Fluent Form entry in the WooCommerce admin order screen.
      *
      * @param WC_Order $order The order object.
      */
     public function display_admin_meta_fields( $order ) {
-        $fields = $this->get_ff_fields( $order );
-        if ( $fields ) {
+        $html = $order->get_meta( '_ff_entry_html', true );
+        if ( $html ) {
             echo '<div class="order_data_column">';
-            echo '<h4>' . esc_html__( 'Fluent Forms Answers', 'taxnexcy' ) . '</h4>';
-            echo '<table class="wp-list-table widefat striped">';
-            echo '<thead><tr><th>' . esc_html__( 'Question', 'taxnexcy' ) . '</th><th>' . esc_html__( 'Answer', 'taxnexcy' ) . '</th></tr></thead>';
-            echo '<tbody>';
+            echo '<h4>' . esc_html__( 'Fluent Form Entry', 'taxnexcy' ) . '</h4>';
+            echo $html;
+            echo '</div>';
+            return;
+        }
+
+        $fields = array();
+        $tables = array();
+        foreach ( $order->get_meta_data() as $meta ) {
+            if ( substr( $meta->key, -5 ) === '_html' ) {
+                $tables[] = $meta;
+                continue;
+            }
+            if ( strpos( $meta->key, 'taxnexcy_' ) !== 0 || strpos( $meta->key, 'taxnexcy_label_' ) === 0 ) {
+                continue;
+            }
+            $slug  = substr( $meta->key, 9 );
+            $label = $order->get_meta( 'taxnexcy_label_' . $slug, true );
+            $label = $label ?: ucwords( str_replace( '_', ' ', $slug ) );
+            $value = is_array( $meta->value ) ? implode( ', ', array_map( 'sanitize_text_field', $meta->value ) ) : sanitize_text_field( $meta->value );
+            $fields[] = array( 'label' => $label, 'value' => $value );
+        }
+
+        if ( ! $fields && ! $tables ) {
+            return;
+        }
+
+        echo '<div class="order_data_column">';
+        echo '<h4>' . esc_html__( 'Fluent Forms Answers', 'taxnexcy' ) . '</h4>';
+        if ( $fields ) {
+            echo '<table class="wp-list-table widefat striped"><thead><tr><th>' . esc_html__( 'Question', 'taxnexcy' ) . '</th><th>' . esc_html__( 'Answer', 'taxnexcy' ) . '</th></tr></thead><tbody>';
             foreach ( $fields as $field ) {
                 printf( '<tr><td>%s</td><td>%s</td></tr>', esc_html( $field['label'] ), esc_html( $field['value'] ) );
             }
-            echo '</tbody></table></div>';
+            echo '</tbody></table>';
         }
+        foreach ( $tables as $meta ) {
+            $label = $order->get_meta( 'taxnexcy_label_' . substr( $meta->key, 9, -5 ), true );
+            $label = $label ?: ucfirst( substr( $meta->key, 9, -5 ) );
+            echo '<h4>' . esc_html( $label ) . '</h4>';
+            echo $meta->value;
+        }
+        echo '</div>';
     }
 }

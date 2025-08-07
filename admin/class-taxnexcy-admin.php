@@ -100,6 +100,20 @@ class Taxnexcy_Admin {
         }
 
         /**
+         * Enqueue Fluent Forms admin CSS on order screens.
+         */
+        public function enqueue_ff_admin_css() {
+                if ( 'shop_order' === ( get_current_screen()->id ?? '' ) ) {
+                        wp_enqueue_style(
+                                'fluent-forms-admin',
+                                FLUENTFORM_PLUGIN_URL . 'assets/css/fluent-forms-admin.css',
+                                array(),
+                                FLUENTFORM_VERSION
+                        );
+                }
+        }
+
+        /**
          * Register Taxnexcy admin menu and subpages.
          */
         public function add_admin_menu() {

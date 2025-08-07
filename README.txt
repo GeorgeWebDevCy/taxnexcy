@@ -4,11 +4,12 @@ Donate link: https://georgenicolaou.me/
 Tags: fluentforms, woocommerce, jcc
 Requires at least: 5.0
 Tested up to: 6.5
-Stable tag: 1.7.37
+Stable tag: 1.7.38
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
 Taxnex Cyprus converts FluentForms submissions into WooCommerce customers and redirects users to checkout for payment.
+Requires Fluent Forms 6.0.4 or higher and stores the rendered entry under the `_ff_entry_html` order meta key.
 
 == Description ==
 This plugin integrates FluentForms with WooCommerce to create customers and process payments automatically.
@@ -29,6 +30,10 @@ Define the token in your `wp-config.php` file:
 Alternatively, set an environment variable named `TAXNEXCY_GITHUB_TOKEN`.
 
 == Changelog ==
+= 1.7.38 =
+* Display Fluent Forms entries using the plugin's renderer inside WooCommerce orders and emails.
+* Require Fluent Forms 6.0.4+ and cache output under the `_ff_entry_html` order meta key.
+
 = 1.7.37 =
 * Exclude additional Fluent Forms internal fields from WooCommerce order details.
 

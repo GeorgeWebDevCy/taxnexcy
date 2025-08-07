@@ -51,7 +51,7 @@ class Taxnexcy_FluentForms {
         $service = new SubmissionService();
 
         try {
-            return $service->renderSubmission( $entry_id, 'table' );
+            return $service->renderSubmission( $entry_id );
         } catch ( \Throwable $e ) {
             Taxnexcy_Logger::log( 'Failed to render submission: ' . $e->getMessage() );
             return '';
@@ -68,11 +68,10 @@ class Taxnexcy_FluentForms {
     public function create_customer( $entry_id, $form_data, $form ) {
         Taxnexcy_Logger::log( 'Processing submission entry ' . $entry_id );
 
-        $log_data   = $form_data;
-        $skip_fields = array( 'fluentform_nonce', 'fluentform_id', 'wp_http_referer', 'fluentform_embed_post_id', 'fluentform_embded_post_id' );
+        $log_data = $form_data;
         foreach ( $log_data as $key => $value ) {
             $sanitized_key = sanitize_key( $key );
-            if ( in_array( $sanitized_key, $skip_fields, true ) || preg_match( '/^fluentform_\d+_fluentformnonce$/', $sanitized_key ) ) {
+            if ( 'wp_http_referer' === $sanitized_key || strpos( $sanitized_key, 'fluentform_' ) === 0 ) {
                 unset( $log_data[ $key ] );
             }
         }
@@ -201,8 +200,7 @@ class Taxnexcy_FluentForms {
                 : $sanitized_key;
 
             // Skip internal Fluent Forms fields like nonces or referrers.
-            $skip_fields = array( 'fluentform_nonce', 'fluentform_id', 'wp_http_referer', 'fluentform_embed_post_id', 'fluentform_embded_post_id' );
-            if ( in_array( $sanitized_key, $skip_fields, true ) || preg_match( '/^fluentform_\d+_fluentformnonce$/', $sanitized_key ) ) {
+            if ( 'wp_http_referer' === $sanitized_key || strpos( $sanitized_key, 'fluentform_' ) === 0 ) {
                 continue;
             }
 
@@ -327,6 +325,18 @@ class Taxnexcy_FluentForms {
      */
     public function display_email_entry( $order, $sent_to_admin, $plain_text, $email ) {
         $html = $order->get_meta( '_ff_entry_html', true );
+        if ( ! $html ) {
+            $form_id  = (int) $order->get_meta( '_ff_form_id', true );
+            $entry_id = (int) $order->get_meta( '_ff_entry_id', true );
+            if ( $form_id && $entry_id ) {
+                $html = $this->render_entry_html( $form_id, $entry_id );
+                if ( $html ) {
+                    $order->update_meta_data( '_ff_entry_html', wp_kses_post( $html ) );
+                    $order->save();
+                }
+            }
+        }
+
         if ( $html ) {
             if ( $plain_text ) {
                 echo "\n" . __( 'Fluent Form Entry', 'taxnexcy' ) . ":\n";
@@ -349,7 +359,10 @@ class Taxnexcy_FluentForms {
             if ( strpos( $meta->key, 'taxnexcy_' ) !== 0 || strpos( $meta->key, 'taxnexcy_label_' ) === 0 ) {
                 continue;
             }
-            $slug  = substr( $meta->key, 9 );
+            $slug = substr( $meta->key, 9 );
+            if ( 'wp_http_referer' === $slug || strpos( $slug, 'fluentform_' ) === 0 ) {
+                continue;
+            }
             $label = $order->get_meta( 'taxnexcy_label_' . $slug, true );
             $label = $label ?: ucwords( str_replace( '_', ' ', $slug ) );
             $value = is_array( $meta->value ) ? implode( ', ', array_map( 'sanitize_text_field', $meta->value ) ) : sanitize_text_field( $meta->value );
@@ -396,6 +409,18 @@ class Taxnexcy_FluentForms {
      */
     public function display_admin_meta_fields( $order ) {
         $html = $order->get_meta( '_ff_entry_html', true );
+        if ( ! $html ) {
+            $form_id  = (int) $order->get_meta( '_ff_form_id', true );
+            $entry_id = (int) $order->get_meta( '_ff_entry_id', true );
+            if ( $form_id && $entry_id ) {
+                $html = $this->render_entry_html( $form_id, $entry_id );
+                if ( $html ) {
+                    $order->update_meta_data( '_ff_entry_html', wp_kses_post( $html ) );
+                    $order->save();
+                }
+            }
+        }
+
         if ( $html ) {
             echo '<div class="order_data_column">';
             echo '<h4>' . esc_html__( 'Fluent Form Entry', 'taxnexcy' ) . '</h4>';
@@ -414,7 +439,10 @@ class Taxnexcy_FluentForms {
             if ( strpos( $meta->key, 'taxnexcy_' ) !== 0 || strpos( $meta->key, 'taxnexcy_label_' ) === 0 ) {
                 continue;
             }
-            $slug  = substr( $meta->key, 9 );
+            $slug = substr( $meta->key, 9 );
+            if ( 'wp_http_referer' === $slug || strpos( $slug, 'fluentform_' ) === 0 ) {
+                continue;
+            }
             $label = $order->get_meta( 'taxnexcy_label_' . $slug, true );
             $label = $label ?: ucwords( str_replace( '_', ' ', $slug ) );
             $value = is_array( $meta->value ) ? implode( ', ', array_map( 'sanitize_text_field', $meta->value ) ) : sanitize_text_field( $meta->value );

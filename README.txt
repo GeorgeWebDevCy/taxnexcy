@@ -4,7 +4,7 @@ Donate link: https://georgenicolaou.me/
 Tags: fluentforms, woocommerce, jcc
 Requires at least: 5.0
 Tested up to: 6.5
-Stable tag: 1.7.41
+Stable tag: 1.7.42
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -23,6 +23,9 @@ Taxnex Cyprus checks for updates on its public GitHub repository, so no
 authentication token is required.
 
 == Changelog ==
+= 1.7.42 =
+* Render full Fluent Forms single entries in WooCommerce orders and emails.
+* Exclude internal Fluent Forms fields from fallback tables.
 = 1.7.41 =
 * Remove GitHub token requirement for updates.
 = 1.7.40 =

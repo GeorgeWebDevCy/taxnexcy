@@ -107,7 +107,7 @@ class Taxnexcy_FluentForms {
         Taxnexcy_Logger::log( 'Processing submission entry ' . $entry_id );
 
         $log_data   = $form_data;
-        $skip_fields = array( 'fluentform_nonce', 'fluentform_id', 'wp_http_referer', 'fluentform_embed_post_id' );
+        $skip_fields = array( 'fluentform_nonce', 'fluentform_id', 'wp_http_referer', 'fluentform_embed_post_id', 'fluentform_embded_post_id' );
         foreach ( $log_data as $key => $value ) {
             $sanitized_key = sanitize_key( $key );
             if ( in_array( $sanitized_key, $skip_fields, true ) || preg_match( '/^fluentform_\d+_fluentformnonce$/', $sanitized_key ) ) {
@@ -240,7 +240,7 @@ class Taxnexcy_FluentForms {
                 : $sanitized_key;
 
             // Skip internal Fluent Forms fields like nonces or referrers.
-            $skip_fields = array( 'fluentform_nonce', 'fluentform_id', 'wp_http_referer', 'fluentform_embed_post_id' );
+            $skip_fields = array( 'fluentform_nonce', 'fluentform_id', 'wp_http_referer', 'fluentform_embed_post_id', 'fluentform_embded_post_id' );
             if ( in_array( $sanitized_key, $skip_fields, true ) || preg_match( '/^fluentform_\d+_fluentformnonce$/', $sanitized_key ) ) {
                 continue;
             }
@@ -385,7 +385,7 @@ class Taxnexcy_FluentForms {
             $label = $order->get_meta( 'taxnexcy_label_' . $slug, true );
 
             // Skip common hidden Fluent Forms fields.
-            if ( in_array( $slug, array( 'wp_http_referer', 'fluentform_nonce', 'fluentform_id', 'fluentform_embed_post_id' ), true ) ||
+            if ( in_array( $slug, array( 'wp_http_referer', 'fluentform_nonce', 'fluentform_id', 'fluentform_embed_post_id', 'fluentform_embded_post_id' ), true ) ||
                 preg_match( '/^fluentform_\d+_fluentformnonce$/', $slug ) ) {
                 continue;
             }

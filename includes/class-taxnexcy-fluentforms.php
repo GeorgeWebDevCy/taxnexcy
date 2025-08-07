@@ -39,12 +39,23 @@ class Taxnexcy_FluentForms {
      * Render a Fluent Forms entry using the plugin's internal renderer.
      *
      * @param int $form_id  Form ID.
-     * @param int $entry_id Entry ID.
-     * @return string HTML for the rendered entry.
+    * @param int $entry_id Entry ID.
+    * @return string HTML for the rendered entry.
      */
     private function render_entry_html( $form_id, $entry_id ) {
+        if ( ! class_exists( '\\FluentForm\\App\\Services\\Submission\\SubmissionService' ) ) {
+            Taxnexcy_Logger::log( 'SubmissionService class not found' );
+            return '';
+        }
+
         $service = new SubmissionService();
-        return $service->renderSubmission( $entry_id, 'table' );
+
+        try {
+            return $service->renderSubmission( $entry_id, 'table' );
+        } catch ( \Throwable $e ) {
+            Taxnexcy_Logger::log( 'Failed to render submission: ' . $e->getMessage() );
+            return '';
+        }
     }
 
     /**

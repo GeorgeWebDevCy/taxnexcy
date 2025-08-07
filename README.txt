@@ -4,7 +4,7 @@ Donate link: https://georgenicolaou.me/
 Tags: fluentforms, woocommerce, jcc
 Requires at least: 5.0
 Tested up to: 6.5
-Stable tag: 1.7.38
+Stable tag: 1.7.39
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -30,6 +30,9 @@ Define the token in your `wp-config.php` file:
 Alternatively, set an environment variable named `TAXNEXCY_GITHUB_TOKEN`.
 
 == Changelog ==
+= 1.7.39 =
+* Prevent fatal errors when Fluent Forms' SubmissionService class is missing.
+
 = 1.7.38 =
 * Display Fluent Forms entries using the plugin's renderer inside WooCommerce orders and emails.
 * Require Fluent Forms 6.0.4+ and cache output under the `_ff_entry_html` order meta key.

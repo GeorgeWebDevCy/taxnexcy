@@ -4,7 +4,7 @@ Donate link: https://georgenicolaou.me/
 Tags: fluentforms, woocommerce, jcc
 Requires at least: 5.0
 Tested up to: 6.5
-Stable tag: 1.7.37
+Stable tag: 1.7.39
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -29,6 +29,9 @@ Define the token in your `wp-config.php` file:
 Alternatively, set an environment variable named `TAXNEXCY_GITHUB_TOKEN`.
 
 == Changelog ==
+= 1.7.39 =
+* Prevent fatal errors when Fluent Forms' SubmissionService class is missing.
+
 = 1.7.37 =
 * Exclude additional Fluent Forms internal fields from WooCommerce order details.
 

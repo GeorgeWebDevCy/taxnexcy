@@ -230,6 +230,7 @@ class Taxnexcy_FluentForms {
         }
 
         $fields = array();
+        $tables = array();
         foreach ( $form_data as $key => $value ) {
             $raw_key       = $key;
             $sanitized_key = sanitize_key( $raw_key );
@@ -249,8 +250,19 @@ class Taxnexcy_FluentForms {
             if ( is_array( $nested_labels ) ) {
                 unset( $nested_labels['__label'] );
             }
-            $value = $this->sanitize_field_value( $value, $nested_labels );
 
+            if ( function_exists( 'taxnexcy_render_repeater_table' ) && is_array( $value ) && is_array( $value[0] ?? null ) ) {
+                $tables[ $sanitized_key ] = taxnexcy_render_repeater_table(
+                    $value,
+                    $nested_labels,
+                    array(
+                        'style' => 'width:100%;border-collapse:collapse;border:1px solid #ddd;font-size:14px;',
+                        'class' => 'taxnexcy-repeater',
+                    )
+                );
+            }
+
+            $value       = $this->sanitize_field_value( $value, $nested_labels );
             $field_label = is_array( $field_labels ) ? ( $field_labels['__label'] ?? ucwords( str_replace( '_', ' ', $sanitized_key ) ) ) : ( $field_labels ?: ucwords( str_replace( '_', ' ', $sanitized_key ) ) );
 
             $fields[] = array(
@@ -262,7 +274,9 @@ class Taxnexcy_FluentForms {
 
         if ( function_exists( 'WC' ) && WC()->session ) {
             WC()->session->set( 'taxnexcy_fields', $fields );
+            WC()->session->set( 'taxnexcy_repeater_tables', $tables );
             Taxnexcy_Logger::log( 'Stored fields in session: ' . wp_json_encode( $fields ) );
+            Taxnexcy_Logger::log( 'Stored repeater tables in session: ' . wp_json_encode( array_keys( $tables ) ) );
         }
     }
 
@@ -339,7 +353,17 @@ class Taxnexcy_FluentForms {
             $order->update_meta_data( 'taxnexcy_label_' . $field['slug'], $field['label'] );
         }
 
+        $tables = WC()->session->get( 'taxnexcy_repeater_tables' );
+        if ( $tables ) {
+            foreach ( $tables as $slug => $html ) {
+                if ( $html ) {
+                    $order->update_meta_data( 'taxnexcy_' . $slug . '_html', wp_kses_post( $html ) );
+                }
+            }
+        }
+
         WC()->session->set( 'taxnexcy_fields', null );
+        WC()->session->set( 'taxnexcy_repeater_tables', null );
         Taxnexcy_Logger::log( 'Added session fields to order ' . $order->get_id() );
     }
 
@@ -352,8 +376,8 @@ class Taxnexcy_FluentForms {
     public function get_ff_fields( $order ) {
         $fields = array();
         foreach ( $order->get_meta_data() as $meta ) {
-            // Only Taxnexcy fields and skip the stored labels themselves.
-            if ( strpos( $meta->key, 'taxnexcy_' ) !== 0 || strpos( $meta->key, 'taxnexcy_label_' ) === 0 ) {
+            // Only Taxnexcy fields and skip the stored labels or HTML tables.
+            if ( strpos( $meta->key, 'taxnexcy_' ) !== 0 || strpos( $meta->key, 'taxnexcy_label_' ) === 0 || substr( $meta->key, -5 ) === '_html' ) {
                 continue;
             }
 

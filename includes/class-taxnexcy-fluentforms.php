@@ -203,7 +203,7 @@ class Taxnexcy_FluentForms {
                 $label = $field['settings']['admin_field_label']
                     ?: ( $field['settings']['label'] ?? ( $field['label'] ?? '' ) );
                 if ( $name ) {
-                    if ( 'input_repeat' === ( $field['element'] ?? '' ) && ! empty( $field['fields'] ) ) {
+                    if ( in_array( $field['element'] ?? '', array( 'input_repeat', 'repeat_container' ), true ) && ! empty( $field['fields'] ) ) {
                         $labels[ $name ] = array( '__label' => sanitize_text_field( $label ) );
                         foreach ( $field['fields'] as $child ) {
                             $child_name  = sanitize_key( $child['name'] ?? ( $child['attributes']['name'] ?? '' ) );
@@ -222,7 +222,12 @@ class Taxnexcy_FluentForms {
 
         $fields = array();
         foreach ( $form_data as $key => $value ) {
-            $sanitized_key = sanitize_key( $key );
+            $raw_key       = $key;
+            $sanitized_key = sanitize_key( $raw_key );
+
+            $base_key = strpos( $raw_key, '.' ) !== false
+                ? sanitize_key( strtok( $raw_key, '.' ) )
+                : $sanitized_key;
 
             // Skip internal Fluent Forms fields like nonces or referrers.
             $skip_fields = array( 'fluentform_nonce', 'fluentform_id', 'wp_http_referer', 'fluentform_embed_post_id' );
@@ -230,7 +235,7 @@ class Taxnexcy_FluentForms {
                 continue;
             }
 
-            $field_labels  = $labels[ $sanitized_key ] ?? array();
+            $field_labels  = $labels[ $base_key ] ?? array();
             $nested_labels = is_array( $field_labels ) ? $field_labels : array();
             if ( is_array( $nested_labels ) ) {
                 unset( $nested_labels['__label'] );

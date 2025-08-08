@@ -17,7 +17,7 @@ if ( ! class_exists( 'Taxnexcy_FF_PDF_Attach' ) ) :
 
 final class Taxnexcy_FF_PDF_Attach {
 
-    const VER                 = '1.1.1';
+    const VER                 = '1.1.2';
     const SESSION_KEY         = 'taxnexcy_ff_entry_map';
     const ORDER_META_PDF_PATH = '_ff_entry_pdf';
     const LOG_FILE            = 'taxnexcy-ffpdf.log';
@@ -290,7 +290,50 @@ final class Taxnexcy_FF_PDF_Attach {
         }
 
         /**
-         * Strategy C: As a last resort, pull the rendered HTML and store it as a .pdf.
+         * Strategy C: GeneralTemplate::outputPDF (latest add-on versions)
+         */
+        try {
+            if (
+                class_exists( '\FluentFormPdf\Classes\Templates\GeneralTemplate' )
+                && function_exists( 'wpFluent' )
+            ) {
+                $this->log( 'Trying GeneralTemplate outputPDF' );
+
+                $form = wpFluent()->table( 'fluentform_forms' )
+                    ->where( 'id', (int) $form_id )
+                    ->first();
+
+                if ( $form ) {
+                    $tpl = new \FluentFormPdf\Classes\Templates\GeneralTemplate( $app );
+
+                    $feed = [
+                        'id'           => 0,
+                        'name'         => 'form-' . (int) $form_id,
+                        'template_key' => 'general',
+                        'settings'     => $tpl->getDefaultSettings( $form ),
+                    ];
+
+                    $tmp = $tpl->outputPDF( (int) $entry_id, $feed, 'taxnexcy-' . $order_id, true );
+
+                    if ( $tmp && file_exists( $tmp ) ) {
+                        copy( $tmp, $dest );
+                        $this->log( 'GeneralTemplate generated file', [ 'file' => $dest ] );
+                        return $dest;
+                    }
+
+                    $this->log( 'GeneralTemplate outputPDF returned invalid path', [ 'file' => $tmp ] );
+                } else {
+                    $this->log( 'GeneralTemplate could not find form', [ 'form_id' => $form_id ] );
+                }
+            } else {
+                $this->log( 'GeneralTemplate class missing or wpFluent unavailable' );
+            }
+        } catch ( \Throwable $e ) {
+            $this->log( 'GeneralTemplate outputPDF failed', [ 'msg' => $e->getMessage() ] );
+        }
+
+        /**
+         * Strategy D: As a last resort, pull the rendered HTML and store it as a .pdf.
          * (Some PDF viewers still handle it; but this is mostly for debugging.)
          */
         try {

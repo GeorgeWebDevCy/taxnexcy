@@ -4,7 +4,7 @@ Donate link: https://georgenicolaou.me/
 Tags: fluentforms, woocommerce, jcc
 Requires at least: 5.0
 Tested up to: 6.5
-Stable tag: 1.7.66
+Stable tag: 1.7.67
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -22,6 +22,9 @@ Taxnex Cyprus checks for updates on its public GitHub repository, so no
 authentication token is required.
 
 == Changelog ==
+= 1.7.67 =
+* Restrict PDF generation to Form ID 4 to prevent missing form errors.
+
 = 1.7.66 =
 * Generate PDFs with Fluent Forms' default template when GlobalPdfManager lacks generation methods.
 = 1.7.64 =

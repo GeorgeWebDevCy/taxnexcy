@@ -17,10 +17,11 @@ if ( ! class_exists( 'Taxnexcy_FF_PDF_Attach' ) ) :
 
 final class Taxnexcy_FF_PDF_Attach {
 
-    const VER                 = '1.1.2';
+    const VER                 = '1.1.3';
     const SESSION_KEY         = 'taxnexcy_ff_entry_map';
     const ORDER_META_PDF_PATH = '_ff_entry_pdf';
     const LOG_FILE            = 'taxnexcy-ffpdf.log';
+    const TARGET_FORM_ID      = 4;
 
     public function __construct() {
         add_action( 'plugins_loaded', [ $this, 'maybe_boot' ], 20 );
@@ -64,6 +65,11 @@ final class Taxnexcy_FF_PDF_Attach {
      * find it during checkout → order creation.
      */
     public function capture_ff_entry_in_session( $entry_id, $form_id, $form_data ) {
+        if ( (int) $form_id !== self::TARGET_FORM_ID ) {
+            $this->log( 'Ignoring FF submission for non-target form', [ 'form_id' => (int) $form_id ] );
+            return;
+        }
+
         if ( function_exists( 'WC' ) && WC()->session ) {
             $map = [
                 'form_id'  => (int) $form_id,
@@ -95,6 +101,11 @@ final class Taxnexcy_FF_PDF_Attach {
         }
 
         $form_id  = (int) $map['form_id'];
+        if ( $form_id !== self::TARGET_FORM_ID ) {
+            $this->log( 'Form ID mismatch; skipping PDF generation', [ 'form_id' => $form_id ] );
+            return;
+        }
+
         $entry_id = (int) $map['entry_id'];
 
         try {

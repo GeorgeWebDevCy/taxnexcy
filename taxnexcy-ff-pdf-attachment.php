@@ -15,7 +15,7 @@ if ( ! class_exists( 'Taxnexcy_FF_PDF_Attach' ) ) :
 
 final class Taxnexcy_FF_PDF_Attach {
 
-    const VER                 = '1.0.5';
+    const VER                 = '1.0.6';
     const SESSION_KEY         = 'taxnexcy_ff_entry_map';
     const ORDER_META_PDF_PATH = '_ff_entry_pdf';
     const LOG_FILE            = 'taxnexcy-ffpdf.log';
@@ -163,17 +163,24 @@ final class Taxnexcy_FF_PDF_Attach {
             $this->log( 'Resolved app via fluentFormPdf()' );
         } elseif ( class_exists( '\FluentFormPdf\App\App' ) && method_exists( '\FluentFormPdf\App\App', 'getInstance' ) ) {
             $app = \FluentFormPdf\App\App::getInstance();
-            $this->log( 'Resolved app via App::getInstance()' );
+            $this->log( 'Resolved app via \FluentFormPdf\App\App::getInstance()' );
+        } elseif ( class_exists( '\FluentForm\App\App' ) && method_exists( '\FluentForm\App\App', 'getInstance' ) ) {
+            // Newer versions expose the PDF manager via the core Fluent Forms container
+            $app = \FluentForm\App\App::getInstance();
+            $this->log( 'Resolved app via \FluentForm\App\App::getInstance()' );
         }
-        if ( ! $app ) { $this->log( 'Failed to resolve Fluent Forms PDF app' ); }
+
+        if ( ! $app ) {
+            $this->log( 'Failed to resolve Fluent Forms PDF app' );
+            return false;
+        }
 
         // Try GlobalPdfManager first (newer method)
         try {
             if ( class_exists( '\FluentFormPdf\Classes\Controller\GlobalPdfManager' ) ) {
                 $this->log( 'Trying GlobalPdfManager' );
-                $manager = $app
-                    ? new \FluentFormPdf\Classes\Controller\GlobalPdfManager( $app )
-                    : new \FluentFormPdf\Classes\Controller\GlobalPdfManager();
+                $manager = new \FluentFormPdf\Classes\Controller\GlobalPdfManager( $app );
+
 
                 try {
                     $pdf_info = $manager->getPdf( $entry_id, $form_id );
@@ -199,18 +206,21 @@ final class Taxnexcy_FF_PDF_Attach {
         // Fallback: TemplateManager (older add-on)
         try {
             if ( class_exists( '\FluentFormPdf\Classes\Templates\TemplateManager' ) ) {
-                $this->log( 'Trying TemplateManager' );
-                $template = $app
-                    ? new \FluentFormPdf\Classes\Templates\TemplateManager( $app )
-                    : new \FluentFormPdf\Classes\Templates\TemplateManager();
-                $tmp = $template->generatePdf( $entry_id, [], 'F' );
-                if ( $tmp && file_exists( $tmp ) ) {
-                    $this->log( 'TemplateManager produced PDF', [ 'source' => $tmp ] );
-                    copy( $tmp, $destination );
-                    $this->log( 'Copied PDF to destination', [ 'destination' => $destination ] );
-                    return $destination;
+                $ref = new \ReflectionClass( '\FluentFormPdf\Classes\Templates\TemplateManager' );
+                if ( ! $ref->isAbstract() ) {
+                    $this->log( 'Trying TemplateManager' );
+                    $template = new \FluentFormPdf\Classes\Templates\TemplateManager( $app );
+                    $tmp      = $template->generatePdf( $entry_id, [], 'F' );
+                    if ( $tmp && file_exists( $tmp ) ) {
+                        $this->log( 'TemplateManager produced PDF', [ 'source' => $tmp ] );
+                        copy( $tmp, $destination );
+                        $this->log( 'Copied PDF to destination', [ 'destination' => $destination ] );
+                        return $destination;
+                    } else {
+                        $this->log( 'TemplateManager returned invalid path', [ 'tmp' => $tmp ] );
+                    }
                 } else {
-                    $this->log( 'TemplateManager returned invalid path', [ 'tmp' => $tmp ] );
+                    $this->log( 'TemplateManager class is abstract; skipping' );
                 }
             } else {
                 $this->log( 'TemplateManager class missing' );

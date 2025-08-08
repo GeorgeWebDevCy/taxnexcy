@@ -15,7 +15,7 @@ if ( ! class_exists( 'Taxnexcy_FF_PDF_Attach' ) ) :
 
 final class Taxnexcy_FF_PDF_Attach {
 
-    const VER                 = '1.0.6';
+    const VER                 = '1.0.7';
     const SESSION_KEY         = 'taxnexcy_ff_entry_map';
     const ORDER_META_PDF_PATH = '_ff_entry_pdf';
     const LOG_FILE            = 'taxnexcy-ffpdf.log';
@@ -101,7 +101,18 @@ final class Taxnexcy_FF_PDF_Attach {
         $form_id  = (int) $map['form_id'];
         $entry_id = (int) $map['entry_id'];
 
-        $pdf_path = $this->create_pdf_for_entry( $form_id, $entry_id, $order_id );
+        try {
+            $pdf_path = $this->create_pdf_for_entry( $form_id, $entry_id, $order_id );
+        } catch ( \Throwable $e ) {
+            $this->log( 'PDF generation exception', [
+                'order_id' => $order_id,
+                'form_id'  => $form_id,
+                'entry_id' => $entry_id,
+                'message'  => $e->getMessage(),
+            ] );
+            return;
+        }
+
         if ( $pdf_path ) {
             $order->update_meta_data( self::ORDER_META_PDF_PATH, $pdf_path );
             $order->save();

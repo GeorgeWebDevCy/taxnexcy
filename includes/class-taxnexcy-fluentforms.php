@@ -262,11 +262,15 @@ class Taxnexcy_FluentForms {
         $url     = wc_get_checkout_url();
         $add_cart = true;
 
-        if ( function_exists( 'WC' ) && WC()->cart && $product->is_sold_individually() ) {
-            $cart_id = WC()->cart->generate_cart_id( $product_id );
-            if ( WC()->cart->find_product_in_cart( $cart_id ) ) {
+        if ( function_exists( 'WC' ) && WC()->cart ) {
+            $cart      = WC()->cart;
+            $cart_stat = $cart->is_empty() ? 'empty' : 'not empty';
+            Taxnexcy_Logger::log( 'Cart is ' . $cart_stat . ' before attempting add-to-cart for product ' . $product_id );
+
+            $cart_id = $cart->generate_cart_id( $product_id );
+            if ( $cart->find_product_in_cart( $cart_id ) ) {
                 $add_cart = false;
-                Taxnexcy_Logger::log( 'Product already in cart and sold individually. Skipping add-to-cart for product ' . $product_id );
+                Taxnexcy_Logger::log( 'Product already in cart. Skipping add-to-cart for product ' . $product_id );
             }
         }
 

@@ -15,7 +15,7 @@ if ( ! class_exists( 'Taxnexcy_FF_PDF_Attach' ) ) :
 
 final class Taxnexcy_FF_PDF_Attach {
 
-    const VER                 = '1.0.4';
+    const VER                 = '1.0.5';
     const SESSION_KEY         = 'taxnexcy_ff_entry_map';
     const ORDER_META_PDF_PATH = '_ff_entry_pdf';
     const LOG_FILE            = 'taxnexcy-ffpdf.log';
@@ -25,8 +25,10 @@ final class Taxnexcy_FF_PDF_Attach {
     }
 
     public function maybe_boot() {
+        $this->log( 'Booting FF PDF helper' );
         // Basic dependency hints (don’t hard-fail).
         if ( ! class_exists( 'WooCommerce' ) ) {
+            $this->log( 'WooCommerce missing; aborting boot' );
             add_action( 'admin_notices', function() {
                 echo '<div class="notice notice-warning"><p><strong>Taxnexcy FF PDF:</strong> WooCommerce is required.</p></div>';
             } );
@@ -34,6 +36,7 @@ final class Taxnexcy_FF_PDF_Attach {
         }
 
         if ( ! defined( 'FLUENTFORM' ) ) {
+            $this->log( 'Fluent Forms missing' );
             add_action( 'admin_notices', function() {
                 echo '<div class="notice notice-warning"><p><strong>Taxnexcy FF PDF:</strong> Fluent Forms is required.</p></div>';
             } );
@@ -53,6 +56,7 @@ final class Taxnexcy_FF_PDF_Attach {
         // Order admin UI: small box with a download link
         add_action( 'add_meta_boxes_shop_order', [ $this, 'add_order_pdf_metabox' ] );
         add_action( 'admin_post_taxnexcy_download_ff_pdf', [ $this, 'handle_admin_pdf_download' ] );
+        $this->log( 'FF PDF helper booted' );
     }
 
     /* ---------------------------------------------
@@ -85,7 +89,9 @@ final class Taxnexcy_FF_PDF_Attach {
      * On order creation, generate PDF for the captured FF entry and save path in order meta.
      */
     public function on_order_created_generate_pdf( $order_id, $posted_data, $order ) {
+        $this->log( 'Order processed, attempting PDF generation', ['order_id' => $order_id] );
         $map = ( function_exists( 'WC' ) && WC()->session ) ? WC()->session->get( self::SESSION_KEY ) : null;
+        $this->log( 'Session map', $map );
 
         if ( empty( $map['form_id'] ) || empty( $map['entry_id'] ) ) {
             $this->log( 'No FF map found in session; skipping PDF generation.' );
@@ -120,6 +126,7 @@ final class Taxnexcy_FF_PDF_Attach {
         // Clear the session mapping so it doesn’t leak into next orders.
         if ( function_exists( 'WC' ) && WC()->session ) {
             WC()->session->set( self::SESSION_KEY, null );
+            $this->log( 'Cleared session map after PDF handling' );
         }
     }
 
@@ -129,6 +136,7 @@ final class Taxnexcy_FF_PDF_Attach {
      * @return string|false Absolute file path or false.
      */
     protected function create_pdf_for_entry( $form_id, $entry_id, $order_id ) {
+        $this->log( 'Starting PDF generation', ['form_id' => $form_id, 'entry_id' => $entry_id, 'order_id' => $order_id] );
 
         // Prepare destination folder
         $upload = wp_upload_dir();
@@ -136,12 +144,14 @@ final class Taxnexcy_FF_PDF_Attach {
             $this->log( 'wp_upload_dir error', $upload );
             return false;
         }
+        $this->log( 'Upload directory', $upload );
 
         $pdf_dir = trailingslashit( $upload['basedir'] ) . 'taxnexcy-pdfs';
         if ( ! wp_mkdir_p( $pdf_dir ) ) {
             $this->log( 'Failed to create pdf_dir', [ 'pdf_dir' => $pdf_dir ] );
             return false;
         }
+        $this->log( 'PDF directory ready', [ 'pdf_dir' => $pdf_dir ] );
 
         $file_name   = sprintf( 'ff-entry-%d-order-%d.pdf', $entry_id, $order_id );
         $destination = trailingslashit( $pdf_dir ) . $file_name;
@@ -150,13 +160,17 @@ final class Taxnexcy_FF_PDF_Attach {
         $app = null;
         if ( function_exists( 'fluentFormPdf' ) ) {
             $app = fluentFormPdf();
-        } elseif ( class_exists( '\\FluentFormPdf\\App\\App' ) && method_exists( '\\FluentFormPdf\\App\\App', 'getInstance' ) ) {
+            $this->log( 'Resolved app via fluentFormPdf()' );
+        } elseif ( class_exists( '\FluentFormPdf\App\App' ) && method_exists( '\FluentFormPdf\App\App', 'getInstance' ) ) {
             $app = \FluentFormPdf\App\App::getInstance();
+            $this->log( 'Resolved app via App::getInstance()' );
         }
+        if ( ! $app ) { $this->log( 'Failed to resolve Fluent Forms PDF app' ); }
 
         // Try GlobalPdfManager first (newer method)
         try {
-            if ( class_exists( '\\FluentFormPdf\\Classes\\Controller\\GlobalPdfManager' ) ) {
+            if ( class_exists( '\FluentFormPdf\Classes\Controller\GlobalPdfManager' ) ) {
+                $this->log( 'Trying GlobalPdfManager' );
                 $manager = $app
                     ? new \FluentFormPdf\Classes\Controller\GlobalPdfManager( $app )
                     : new \FluentFormPdf\Classes\Controller\GlobalPdfManager();
@@ -168,9 +182,15 @@ final class Taxnexcy_FF_PDF_Attach {
                 }
 
                 if ( is_array( $pdf_info ) && ! empty( $pdf_info['path'] ) && file_exists( $pdf_info['path'] ) ) {
+                    $this->log( 'GlobalPdfManager produced PDF', [ 'source' => $pdf_info['path'] ] );
                     copy( $pdf_info['path'], $destination );
+                    $this->log( 'Copied PDF to destination', [ 'destination' => $destination ] );
                     return $destination;
+                } else {
+                    $this->log( 'GlobalPdfManager returned invalid response', [ 'pdf_info' => $pdf_info ] );
                 }
+            } else {
+                $this->log( 'GlobalPdfManager class missing' );
             }
         } catch ( \Throwable $e ) {
             $this->log( 'GlobalPdfManager failed', [ 'msg' => $e->getMessage() ] );
@@ -178,23 +198,30 @@ final class Taxnexcy_FF_PDF_Attach {
 
         // Fallback: TemplateManager (older add-on)
         try {
-            if ( class_exists( '\\FluentFormPdf\\Classes\\Templates\\TemplateManager' ) ) {
+            if ( class_exists( '\FluentFormPdf\Classes\Templates\TemplateManager' ) ) {
+                $this->log( 'Trying TemplateManager' );
                 $template = $app
                     ? new \FluentFormPdf\Classes\Templates\TemplateManager( $app )
                     : new \FluentFormPdf\Classes\Templates\TemplateManager();
                 $tmp = $template->generatePdf( $entry_id, [], 'F' );
                 if ( $tmp && file_exists( $tmp ) ) {
+                    $this->log( 'TemplateManager produced PDF', [ 'source' => $tmp ] );
                     copy( $tmp, $destination );
+                    $this->log( 'Copied PDF to destination', [ 'destination' => $destination ] );
                     return $destination;
+                } else {
+                    $this->log( 'TemplateManager returned invalid path', [ 'tmp' => $tmp ] );
                 }
+            } else {
+                $this->log( 'TemplateManager class missing' );
             }
         } catch ( \Throwable $e ) {
             $this->log( 'TemplateManager failed', [ 'msg' => $e->getMessage() ] );
         }
 
+        $this->log( 'PDF generation failed in all methods', [ 'form_id' => $form_id, 'entry_id' => $entry_id, 'order_id' => $order_id ] );
         return false;
     }
-
     /* ---------------------------------------
      * 3) ATTACH TO WOO EMAILS AUTOMATICALLY
      * ------------------------------------- */

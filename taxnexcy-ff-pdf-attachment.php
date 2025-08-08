@@ -15,7 +15,7 @@ if ( ! class_exists( 'Taxnexcy_FF_PDF_Attach' ) ) :
 
 final class Taxnexcy_FF_PDF_Attach {
 
-    const VER                 = '1.0.3';
+    const VER                 = '1.0.4';
     const SESSION_KEY         = 'taxnexcy_ff_entry_map';
     const ORDER_META_PDF_PATH = '_ff_entry_pdf';
     const LOG_FILE            = 'taxnexcy-ffpdf.log';
@@ -165,12 +165,19 @@ final class Taxnexcy_FF_PDF_Attach {
                     if ( $requires > 0 ) {
                         $app    = null;
                         $source = 'none';
-                        if ( function_exists( 'fluentFormPdf' ) ) {
+
+                        if ( function_exists( 'fluentForm' ) ) {
+                            $app    = fluentForm();
+                            $source = 'fluentForm';
+                        } elseif ( class_exists( '\\FluentForm\\App\\App' ) && method_exists( '\\FluentForm\\App\\App', 'getInstance' ) ) {
+                            $app    = \FluentForm\App\App::getInstance();
+                            $source = 'FluentForm App::getInstance';
+                        } elseif ( function_exists( 'fluentFormPdf' ) ) {
                             $app    = fluentFormPdf();
                             $source = 'fluentFormPdf';
                         } elseif ( class_exists( '\\FluentFormPdf\\App\\App' ) && method_exists( '\\FluentFormPdf\\App\\App', 'getInstance' ) ) {
                             $app    = \FluentFormPdf\App\App::getInstance();
-                            $source = 'App::getInstance';
+                            $source = 'Pdf App::getInstance';
                         }
 
                         $this->log( 'Resolved application container for GlobalPdfManager', [
@@ -178,15 +185,17 @@ final class Taxnexcy_FF_PDF_Attach {
                             'app_type' => is_object( $app ) ? get_class( $app ) : gettype( $app ),
                         ] );
 
-                        if ( ! $app ) {
+                        if ( $app ) {
+                            $manager = new \FluentFormPdf\Classes\Controller\GlobalPdfManager( $app );
+                            $this->log( 'GlobalPdfManager instantiated with app', [ 'with_app' => true ] );
+                        } else {
                             $this->log( 'No application container available', [
-                                'has_helper'   => function_exists( 'fluentFormPdf' ),
-                                'has_app_class' => class_exists( '\\FluentFormPdf\\App\\App' ),
+                                'has_fluent_form_helper'   => function_exists( 'fluentForm' ),
+                                'has_fluent_form_app'      => class_exists( '\\FluentForm\\App\\App' ),
+                                'has_fluentform_pdf_helper' => function_exists( 'fluentFormPdf' ),
+                                'has_pdf_app_class'        => class_exists( '\\FluentFormPdf\\App\\App' ),
                             ] );
                         }
-
-                        $manager = new \FluentFormPdf\Classes\Controller\GlobalPdfManager( $app );
-                        $this->log( 'GlobalPdfManager instantiated with app', [ 'with_app' => (bool) $app ] );
                     } else {
                         $manager = new \FluentFormPdf\Classes\Controller\GlobalPdfManager();
                         $this->log( 'GlobalPdfManager instantiated without app' );

@@ -4,7 +4,7 @@ Donate link: https://georgenicolaou.me/
 Tags: fluentforms, woocommerce, jcc
 Requires at least: 5.0
 Tested up to: 6.5
-Stable tag: 1.7.62
+Stable tag: 1.7.64
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -23,6 +23,13 @@ Taxnex Cyprus checks for updates on its public GitHub repository, so no
 authentication token is required.
 
 == Changelog ==
+= 1.7.64 =
+* Add logging for WooCommerce order status changes, cart loads, and cart clearing.
+* Record order action restrictions and cart resets for easier debugging.
+
+= 1.7.63 =
+* Replace Fluent Forms PDF attachment helper with enhanced version 1.1.0.
+
 = 1.7.62 =
 * Provide fallback mapping for Form 4 to product 100506.
 

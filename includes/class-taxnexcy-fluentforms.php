@@ -36,6 +36,8 @@ class Taxnexcy_FluentForms {
         add_action( 'woocommerce_checkout_process', array( $this, 'log_checkout_request' ) );
         add_action( 'woocommerce_checkout_order_processed', array( $this, 'log_checkout_processed' ), 10, 3 );
         add_filter( 'woocommerce_add_error', array( $this, 'log_woocommerce_error' ) );
+        add_action( 'woocommerce_order_status_changed', array( $this, 'log_order_status_change' ), 10, 4 );
+        add_action( 'woocommerce_cart_loaded_from_session', array( $this, 'log_cart_loaded_from_session' ) );
     }
 
     /**
@@ -428,6 +430,29 @@ class Taxnexcy_FluentForms {
     public function log_woocommerce_error( $error ) {
         Taxnexcy_Logger::log( 'WooCommerce error notice: ' . $error );
         return $error;
+    }
+
+    /**
+     * Log order status transitions for debugging.
+     *
+     * @param int      $order_id   Order ID.
+     * @param string   $old_status Previous status slug.
+     * @param string   $new_status New status slug.
+     * @param WC_Order $order      Order object.
+     */
+    public function log_order_status_change( $order_id, $old_status, $new_status, $order ) {
+        Taxnexcy_Logger::log( 'Order ' . $order_id . ' status changed from ' . $old_status . ' to ' . $new_status );
+    }
+
+    /**
+     * Log cart contents when loaded from the session.
+     *
+     * @param WC_Cart $cart Cart object.
+     */
+    public function log_cart_loaded_from_session( $cart ) {
+        if ( is_object( $cart ) && method_exists( $cart, 'get_cart' ) ) {
+            Taxnexcy_Logger::log( 'Cart loaded from session: ' . wp_json_encode( $cart->get_cart() ) );
+        }
     }
 
     /**

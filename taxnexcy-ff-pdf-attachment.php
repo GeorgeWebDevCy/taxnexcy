@@ -17,7 +17,7 @@ if ( ! class_exists( 'Taxnexcy_FF_PDF_Attach' ) ) :
 
 final class Taxnexcy_FF_PDF_Attach {
 
-    const VER                 = '1.1.0';
+    const VER                 = '1.1.1';
     const SESSION_KEY         = 'taxnexcy_ff_entry_map';
     const ORDER_META_PDF_PATH = '_ff_entry_pdf';
     const LOG_FILE            = 'taxnexcy-ffpdf.log';
@@ -171,47 +171,62 @@ final class Taxnexcy_FF_PDF_Attach {
                 $this->log( 'Trying GlobalPdfManager' );
                 $manager = \FluentFormPdf\Classes\Controller\GlobalPdfManager::class;
 
-                $ref  = new \ReflectionClass( $manager );
-                $meth = $ref->getMethod( 'generateEntryPdf' );
+                $ref        = new \ReflectionClass( $manager );
+                $method     = null;
+                $candidates = [ 'generateEntryPdf', 'getEntryPdf', 'generatePdf', 'generate' ];
 
-                $params   = $meth->getNumberOfParameters();
-                $settings = [
-                    'file_name'   => basename( $dest ),
-                    'file_path'   => $dest,
-                    'save_to'     => dirname( $dest ),
-                    'paper_size'  => 'A4',
-                    'orientation' => 'portrait',
-                ];
+                foreach ( $candidates as $candidate ) {
+                    if ( $ref->hasMethod( $candidate ) ) {
+                        $method = $ref->getMethod( $candidate );
+                        $this->log( 'GlobalPdfManager using method', [ 'method' => $candidate ] );
+                        break;
+                    }
+                }
 
-                if ( $params >= 4 ) {
-                    // ($entryId, $formId, $filePath, $settings)
-                    $pdf_info = $meth->invoke( $ref->newInstance(), (int) $entry_id, (int) $form_id, $dest, $settings );
-                } elseif ( $params === 3 ) {
-                    // ($entryId, $filePath, $settings)
-                    $pdf_info = $meth->invoke( $ref->newInstance(), (int) $entry_id, $dest, $settings );
+                if ( $method ) {
+                    $params   = $method->getNumberOfParameters();
+                    $settings = [
+                        'file_name'   => basename( $dest ),
+                        'file_path'   => $dest,
+                        'save_to'     => dirname( $dest ),
+                        'paper_size'  => 'A4',
+                        'orientation' => 'portrait',
+                    ];
+
+                    if ( $params >= 4 ) {
+                        // ($entryId, $formId, $filePath, $settings)
+                        $pdf_info = $method->invoke( $ref->newInstance(), (int) $entry_id, (int) $form_id, $dest, $settings );
+                    } elseif ( $params === 3 ) {
+                        // ($entryId, $filePath, $settings)
+                        $pdf_info = $method->invoke( $ref->newInstance(), (int) $entry_id, $dest, $settings );
+                    } elseif ( $params === 2 ) {
+                        // ($entryId, $filePath)
+                        $pdf_info = $method->invoke( $ref->newInstance(), (int) $entry_id, $dest );
+                    } else {
+                        // Unexpected signature, try a conservative call
+                        $pdf_info = $method->invoke( $ref->newInstance(), (int) $entry_id );
+                    }
+
+                    // Normalize success
+                    if ( is_array( $pdf_info ) && ! empty( $pdf_info['file_path'] ) && file_exists( $pdf_info['file_path'] ) ) {
+                        $this->log( 'GlobalPdfManager generated file', [ 'file' => $pdf_info['file_path'] ] );
+                        return $pdf_info['file_path'];
+                    }
+                    if ( file_exists( $dest ) && filesize( $dest ) > 0 ) {
+                        $this->log( 'GlobalPdfManager wrote destination file', [ 'file' => $dest ] );
+                        return $dest;
+                    }
+
+                    $this->log( 'GlobalPdfManager returned invalid response', [ 'pdf_info' => $pdf_info ] );
                 } else {
-                    // Unexpected signature, try a conservative call
-                    $pdf_info = $meth->invoke( $ref->newInstance(), (int) $entry_id, $dest );
+                    $this->log( 'GlobalPdfManager missing known methods', [ 'checked' => $candidates ] );
                 }
-
-                // Normalize success
-                if ( is_array( $pdf_info ) && ! empty( $pdf_info['file_path'] ) && file_exists( $pdf_info['file_path'] ) ) {
-                    $this->log( 'GlobalPdfManager generated file', [ 'file' => $pdf_info['file_path'] ] );
-                    return $pdf_info['file_path'];
-                }
-                if ( file_exists( $dest ) && filesize( $dest ) > 0 ) {
-                    $this->log( 'GlobalPdfManager wrote destination file', [ 'file' => $dest ] );
-                    return $dest;
-                }
-
-                $this->log( 'GlobalPdfManager returned invalid response', [ 'pdf_info' => $pdf_info ] );
             } else {
                 $this->log( 'GlobalPdfManager class missing' );
             }
         } catch ( \Throwable $e ) {
             $this->log( 'GlobalPdfManager failed', [ 'msg' => $e->getMessage() ] );
         }
-
         /**
          * Strategy B: TemplateManager (older add-on)
          * Some older versions have \FluentFormPdf\Classes\Templates\TemplateManager

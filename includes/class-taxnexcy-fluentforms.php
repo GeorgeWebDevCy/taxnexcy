@@ -252,7 +252,14 @@ class Taxnexcy_FluentForms {
         }
 
         $product_id = apply_filters( 'taxnexcy_product_id', 0, $form, $form_data );
-        $product    = wc_get_product( $product_id );
+        Taxnexcy_Logger::log( 'Product ID resolved from mapping: ' . $product_id );
+
+        if ( ! $product_id ) {
+            $product_id = 100506;
+            Taxnexcy_Logger::log( 'No mapped product ID; using fallback product ID ' . $product_id );
+        }
+
+        $product = wc_get_product( $product_id );
 
         if ( ! $product ) {
             Taxnexcy_Logger::log( 'Product not found for redirect. ID: ' . $product_id );

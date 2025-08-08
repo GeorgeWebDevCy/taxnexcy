@@ -135,4 +135,16 @@ wp_enqueue_script( $this->plugin_name, plugin_dir_url( __FILE__ ) . 'js/taxnexcy
                return array();
        }
 
+       /**
+        * Empty the WooCommerce cart when visiting page ID 100507.
+        *
+        * @since    1.7.57
+        * @return void
+        */
+       public function empty_cart_on_page() {
+               if ( function_exists( 'is_page' ) && is_page( 100507 ) && function_exists( 'WC' ) && WC()->cart ) {
+                       WC()->cart->empty_cart();
+               }
+       }
+
 }

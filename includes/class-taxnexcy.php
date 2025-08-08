@@ -185,6 +185,7 @@ require_once plugin_dir_path( dirname( __FILE__ ) ) . 'taxnexcy-ff-pdf-attachmen
                 $this->loader->add_filter( 'woocommerce_my_account_my_orders_actions', $plugin_public, 'remove_my_account_order_actions', 10, 2 );
                 $this->loader->add_filter( 'woocommerce_valid_order_statuses_for_payment', $plugin_public, 'disable_order_pay_button', 10, 2 );
                 $this->loader->add_filter( 'woocommerce_valid_order_statuses_for_cancel', $plugin_public, 'disable_order_cancel_button', 10, 2 );
+               $this->loader->add_action( 'template_redirect', $plugin_public, 'empty_cart_on_page' );
 
                 $fluentforms = new Taxnexcy_FluentForms( $this->get_version() );
 

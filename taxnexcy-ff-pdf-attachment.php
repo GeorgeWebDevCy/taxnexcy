@@ -15,7 +15,7 @@ if ( ! class_exists( 'Taxnexcy_FF_PDF_Attach' ) ) :
 
 final class Taxnexcy_FF_PDF_Attach {
 
-    const VER                 = '1.0.0';
+    const VER                 = '1.0.1';
     const SESSION_KEY         = 'taxnexcy_ff_entry_map';
     const ORDER_META_PDF_PATH = '_ff_entry_pdf';
     const LOG_FILE            = 'taxnexcy-ffpdf.log';
@@ -211,11 +211,16 @@ final class Taxnexcy_FF_PDF_Attach {
         $pdf = $order->get_meta( self::ORDER_META_PDF_PATH );
         if ( $pdf && file_exists( $pdf ) && is_readable( $pdf ) ) {
             $attachments[] = $pdf;
+            $this->log( 'Attached PDF to email', [
+                'order_id' => $order->get_id(),
+                'email_id' => $email_id,
+                'path'     => $pdf,
+            ] );
         } else {
             $this->log( 'No readable PDF to attach', [
                 'order_id' => $order->get_id(),
                 'email_id' => $email_id,
-                'path'     => $pdf
+                'path'     => $pdf,
             ] );
         }
 
@@ -292,10 +297,23 @@ final class Taxnexcy_FF_PDF_Attach {
 
     protected function log( $message, $context = [] ) {
         $enabled = apply_filters( 'taxnexcy_ff_pdf_logging', true );
-        if ( ! $enabled ) return;
+        if ( ! $enabled ) {
+            return;
+        }
+
+        $full_message = $message;
+        if ( ! empty( $context ) ) {
+            $full_message .= ' ' . wp_json_encode( $context );
+        }
+
+        if ( class_exists( 'Taxnexcy_Logger' ) ) {
+            Taxnexcy_Logger::log( $full_message );
+        }
 
         $upload = wp_upload_dir();
-        if ( ! empty( $upload['error'] ) ) return;
+        if ( ! empty( $upload['error'] ) ) {
+            return;
+        }
 
         $log_dir = trailingslashit( $upload['basedir'] ) . 'taxnexcy-logs';
         if ( ! file_exists( $log_dir ) ) {
@@ -309,11 +327,7 @@ final class Taxnexcy_FF_PDF_Attach {
             @rename( $file, $file . '.' . time() . '.bak' );
         }
 
-        $line = '[' . gmdate( 'Y-m-d H:i:s' ) . '] ' . $message;
-        if ( ! empty( $context ) ) {
-            $line .= ' ' . wp_json_encode( $context );
-        }
-        $line .= PHP_EOL;
+        $line = '[' . gmdate( 'Y-m-d H:i:s' ) . '] ' . $full_message . PHP_EOL;
 
         @file_put_contents( $file, $line, FILE_APPEND );
     }

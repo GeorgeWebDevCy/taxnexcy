@@ -16,7 +16,7 @@
  * Plugin Name:       Taxnex Cyprus
  * Plugin URI:        https://georgenicolaou.me/taxnexcy
 * Description:       Creates WooCommerce user from FluentForms submission and redirects to checkout
-* Version:           1.7.61
+* Version:           1.7.62
 * Author:            George Nicolaou
  * Author URI:        https://georgenicolaou.me/
  * License:           GPL-2.0+
@@ -35,7 +35,7 @@ if ( ! defined( 'WPINC' ) ) {
   * Start at version 1.0.0 and use SemVer - https://semver.org
   * Rename this for your plugin and update it as you release new versions.
   */
-define( 'TAXNEXCY_VERSION', '1.7.61' );
+define( 'TAXNEXCY_VERSION', '1.7.62' );
 
 /**
  * Map Fluent Forms IDs to WooCommerce product IDs.
@@ -43,7 +43,9 @@ define( 'TAXNEXCY_VERSION', '1.7.61' );
  * define( 'TAXNEXCY_FORM_PRODUCTS', array( 10 => 123, 20 => 456 ) );
  */
 if ( ! defined( 'TAXNEXCY_FORM_PRODUCTS' ) ) {
-    define( 'TAXNEXCY_FORM_PRODUCTS', array() );
+    define( 'TAXNEXCY_FORM_PRODUCTS', array(
+        4 => 100506, // Form ID => Product ID
+    ) );
 }
 
 /**

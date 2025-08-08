@@ -246,33 +246,42 @@ class Taxnexcy_FluentForms {
      */
     public function maybe_redirect_to_payment( $response, $form_data, $form ) {
         Taxnexcy_Logger::log( 'maybe_redirect_to_payment triggered. Raw data: ' . wp_json_encode( $form_data ) );
+
+        // Sanity check: WooCommerce functions must exist.
         if ( ! function_exists( 'wc_get_product' ) || ! function_exists( 'wc_get_checkout_url' ) ) {
             Taxnexcy_Logger::log( 'WooCommerce functions unavailable for redirect' );
             return $response;
         }
 
+        // Resolve product via mapping filter (admin option or constant).
         $product_id = apply_filters( 'taxnexcy_product_id', 0, $form, $form_data );
-        Taxnexcy_Logger::log( 'Product ID resolved from mapping: ' . $product_id );
 
+        // Hard fallback so checkout still works even if mapping is empty/misconfigured.
         if ( ! $product_id ) {
-            $product_id = 100506;
-            Taxnexcy_Logger::log( 'No mapped product ID; using fallback product ID ' . $product_id );
+            $product_id = 100506; // 👈 YOUR DEFAULT PRODUCT ID
+            Taxnexcy_Logger::log( 'Mapping returned empty product. Using fallback product ID: ' . $product_id );
         }
 
         $product = wc_get_product( $product_id );
-
         if ( ! $product ) {
             Taxnexcy_Logger::log( 'Product not found for redirect. ID: ' . $product_id );
             return $response;
         }
 
+        // Extra guard: product must be purchasable.
+        if ( method_exists( $product, 'is_purchasable' ) && ! $product->is_purchasable() ) {
+            Taxnexcy_Logger::log( 'Product not purchasable: ' . $product_id );
+            return $response;
+        }
+
         Taxnexcy_Logger::log( 'Product for redirect: ' . $product_id . ' - ' . $product->get_name() );
 
-        $url     = wc_get_checkout_url();
+        $url      = wc_get_checkout_url();
         $add_cart = true;
 
+        // If cart is available, avoid duplicating the same product.
         if ( function_exists( 'WC' ) && WC()->cart ) {
-            $cart      = WC()->cart;
+            $cart = WC()->cart;
             $cart_stat = $cart->is_empty() ? 'empty' : 'not empty';
             Taxnexcy_Logger::log( 'Cart is ' . $cart_stat . ' before attempting add-to-cart for product ' . $product_id );
             Taxnexcy_Logger::log( 'Current cart contents: ' . wp_json_encode( $cart->get_cart() ) );
@@ -286,6 +295,7 @@ class Taxnexcy_FluentForms {
             Taxnexcy_Logger::log( 'Cart not available before redirect.' );
         }
 
+        // Build checkout URL. If adding item, pass add-to-cart param.
         if ( $add_cart ) {
             $url = add_query_arg(
                 array(
@@ -294,24 +304,29 @@ class Taxnexcy_FluentForms {
                 ),
                 $url
             );
+            Taxnexcy_Logger::log( 'Redirecting to checkout with add-to-cart for product ' . $product_id );
         } else {
             Taxnexcy_Logger::log( 'Redirecting to checkout without adding product ' . $product_id );
         }
 
         Taxnexcy_Logger::log( 'Checkout URL with cart params: ' . $url );
 
+        // Allow disabling redirect via constant/filter.
         $should_redirect = ! ( defined( 'TAXNEXCY_DISABLE_REDIRECT' ) && TAXNEXCY_DISABLE_REDIRECT );
         $should_redirect = apply_filters( 'taxnexcy_redirect_to_payment', $should_redirect, $product_id );
 
         if ( $url && $should_redirect ) {
-            // Provide multiple keys for compatibility with different Fluent Forms versions.
-            $response['redirect_to'] = $url;
+            // Provide multiple keys for compatibility across Fluent Forms versions.
+            $response['redirect_to']  = $url;
             $response['redirect_url'] = $url;
             $response['redirectTo']   = $url;
+
+            // If this was a non-AJAX submission, do a server-side redirect too.
             if ( ! wp_doing_ajax() ) {
                 wp_safe_redirect( $url );
                 exit;
             }
+
             Taxnexcy_Logger::log( 'Redirecting to checkout for product ' . $product_id );
         } elseif ( ! $should_redirect ) {
             Taxnexcy_Logger::log( 'Redirect disabled for product ' . $product_id );
@@ -320,7 +335,6 @@ class Taxnexcy_FluentForms {
         }
 
         Taxnexcy_Logger::log( 'Response after redirect check: ' . wp_json_encode( $response ) );
-
         return $response;
     }
 

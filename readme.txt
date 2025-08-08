@@ -4,7 +4,7 @@ Donate link: https://georgenicolaou.me/
 Tags: fluentforms, woocommerce, jcc
 Requires at least: 5.0
 Tested up to: 6.5
-Stable tag: 1.7.48
+Stable tag: 1.7.49
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -22,6 +22,9 @@ Taxnex Cyprus checks for updates on its public GitHub repository, so no
 authentication token is required.
 
 == Changelog ==
+= 1.7.49 =
+* Add detailed logging for Fluent Forms PDF manager initialization to help debug container issues.
+
 = 1.7.48 =
 * Pass container to GlobalPdfManager to prevent fatal errors during PDF generation.
 * Skip abstract TemplateManager classes.

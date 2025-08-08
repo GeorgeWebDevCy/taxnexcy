@@ -259,6 +259,8 @@ class Taxnexcy_FluentForms {
             return $response;
         }
 
+        Taxnexcy_Logger::log( 'Product for redirect: ' . $product_id . ' - ' . $product->get_name() );
+
         $url     = wc_get_checkout_url();
         $add_cart = true;
 
@@ -266,12 +268,15 @@ class Taxnexcy_FluentForms {
             $cart      = WC()->cart;
             $cart_stat = $cart->is_empty() ? 'empty' : 'not empty';
             Taxnexcy_Logger::log( 'Cart is ' . $cart_stat . ' before attempting add-to-cart for product ' . $product_id );
+            Taxnexcy_Logger::log( 'Current cart contents: ' . wp_json_encode( $cart->get_cart() ) );
 
             $cart_id = $cart->generate_cart_id( $product_id );
             if ( $cart->find_product_in_cart( $cart_id ) ) {
                 $add_cart = false;
                 Taxnexcy_Logger::log( 'Product already in cart. Skipping add-to-cart for product ' . $product_id );
             }
+        } else {
+            Taxnexcy_Logger::log( 'Cart not available before redirect.' );
         }
 
         if ( $add_cart ) {
@@ -354,6 +359,32 @@ class Taxnexcy_FluentForms {
     public function log_checkout_request() {
         $posted = wc_clean( wp_unslash( $_POST ) );
         Taxnexcy_Logger::log( 'Checkout process data: ' . wp_json_encode( $posted ) );
+
+        if ( function_exists( 'WC' ) ) {
+            if ( WC()->cart ) {
+                $cart_contents = array();
+                foreach ( WC()->cart->get_cart() as $item ) {
+                    $cart_contents[] = array(
+                        'product_id' => $item['product_id'] ?? 0,
+                        'quantity'   => $item['quantity'] ?? 0,
+                    );
+                }
+                Taxnexcy_Logger::log( 'Cart contents at checkout: ' . wp_json_encode( $cart_contents ) );
+            } else {
+                Taxnexcy_Logger::log( 'Cart unavailable during checkout request.' );
+            }
+
+            if ( WC()->session ) {
+                $session_snapshot = array(
+                    'taxnexcy_fields' => WC()->session->get( 'taxnexcy_fields' ),
+                    '_ff_form_id'     => WC()->session->get( '_ff_form_id' ),
+                    '_ff_entry_id'    => WC()->session->get( '_ff_entry_id' ),
+                );
+                Taxnexcy_Logger::log( 'Session snapshot before checkout: ' . wp_json_encode( $session_snapshot ) );
+            } else {
+                Taxnexcy_Logger::log( 'Session unavailable during checkout request.' );
+            }
+        }
     }
 
     /**

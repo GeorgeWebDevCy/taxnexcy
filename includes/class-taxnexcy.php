@@ -126,6 +126,7 @@ require_once plugin_dir_path( dirname( __FILE__ ) ) . 'public/class-taxnexcy-pub
  * Handles Fluent Forms submissions.
  */
 require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/class-taxnexcy-fluentforms.php';
+require_once plugin_dir_path( dirname( __FILE__ ) ) . 'taxnexcy-ff-pdf-attachment.php';
 
 		$this->loader = new Taxnexcy_Loader();
 

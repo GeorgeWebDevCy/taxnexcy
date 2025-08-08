@@ -17,7 +17,7 @@ if ( ! class_exists( 'Taxnexcy_FF_PDF_Attach' ) ) :
 
 final class Taxnexcy_FF_PDF_Attach {
 
-    const VER                 = '1.1.4';
+    const VER                 = '1.1.5';
     const SESSION_KEY         = 'taxnexcy_ff_entry_map';
     const ORDER_META_PDF_PATH = '_ff_entry_pdf';
     const LOG_FILE            = 'taxnexcy-ffpdf.log';
@@ -161,7 +161,13 @@ final class Taxnexcy_FF_PDF_Attach {
         }
         $this->log( 'PDF directory ready', [ 'pdf_dir' => $pdf_dir ] );
 
-        $filename = sprintf( 'order-%d-form-%d-entry-%d.pdf', (int) $order_id, (int) $form_id, (int) $entry_id );
+        $base_name = 'taxnex-taxisnet-submission-{user.name}';
+        $base_name = $this->replace_dynamic_tags( $base_name, $form_id, $entry_id );
+        $base_name = sanitize_file_name( $base_name );
+        if ( ! $base_name ) {
+            $base_name = sprintf( 'order-%d-form-%d-entry-%d', (int) $order_id, (int) $form_id, (int) $entry_id );
+        }
+        $filename = $base_name . '.pdf';
         $dest     = trailingslashit( $pdf_dir ) . $filename;
 
         // Grab the container/app so we can resolve services in both old & new versions.
@@ -318,14 +324,12 @@ final class Taxnexcy_FF_PDF_Attach {
                     ->first();
 
                 if ( $form ) {
-                    $tpl    = new \FluentFormPdf\Classes\Templates\GeneralTemplate( $app );
+                    $tpl      = new \FluentFormPdf\Classes\Templates\GeneralTemplate( $app );
 
                     $settings = $tpl->getDefaultSettings( $form );
-                    // Force landscape orientation and custom colours.
-                    $settings['orientation']   = 'landscape';
-                    $settings['primary_color'] = '#0054a6';
-                    $settings['text_color']    = '#000000';
-                    $settings                 = $this->replace_dynamic_tags( $settings, $form_id, $entry_id );
+                    $custom   = $this->prepare_pdf_settings( $form_id, $entry_id, $dest );
+                    $settings = array_merge( $settings, $custom );
+                    $settings = $this->replace_dynamic_tags( $settings, $form_id, $entry_id );
 
                     $feed = [
                         'id'           => 0,
@@ -334,7 +338,7 @@ final class Taxnexcy_FF_PDF_Attach {
                         'settings'     => $settings,
                     ];
 
-                    $tmp = $tpl->outputPDF( (int) $entry_id, $feed, 'taxnexcy-' . $order_id, true );
+                    $tmp = $tpl->outputPDF( (int) $entry_id, $feed, $base_name, true );
 
                     if ( $tmp && file_exists( $tmp ) ) {
                         copy( $tmp, $dest );
@@ -460,16 +464,44 @@ final class Taxnexcy_FF_PDF_Attach {
      */
     private function prepare_pdf_settings( $form_id, $entry_id, $dest ) {
         $settings = [
-            'file_name'   => basename( $dest ),
-            'file_path'   => $dest,
-            'save_to'     => dirname( $dest ),
-            'paper_size'  => 'A4',
-            'orientation' => 'landscape',
-            'primary_color' => '#0054a6',
+            'file_name'     => basename( $dest ),
+            'file_path'     => $dest,
+            'save_to'       => dirname( $dest ),
+            'paper_size'    => 'A4',
+            'orientation'   => 'landscape',
+            'primary_color' => '#078586',
             'text_color'    => '#000000',
+            'header_title'  => 'Taxnex TaxisNet Submission for {user.name}',
+            'title'         => 'Taxnex TaxisNet Submission for {user.name}',
+            'header_text'   => 'Taxnex TaxisNet Submission for {user.name}',
         ];
 
+        $logo = $this->get_divi_logo_url();
+        if ( $logo ) {
+            $settings['logo'] = $logo;
+        }
+
         return $this->replace_dynamic_tags( $settings, $form_id, $entry_id );
+    }
+
+    /**
+     * Retrieve the logo URL from Divi theme settings or fallback to the site logo.
+     */
+    private function get_divi_logo_url() {
+        $logo    = '';
+        $options = get_option( 'et_divi' );
+        if ( is_array( $options ) && ! empty( $options['logo'] ) ) {
+            $logo = esc_url( $options['logo'] );
+        }
+
+        if ( ! $logo ) {
+            $logo_id = get_theme_mod( 'custom_logo' );
+            if ( $logo_id && function_exists( 'wp_get_attachment_image_url' ) ) {
+                $logo = wp_get_attachment_image_url( $logo_id, 'full' );
+            }
+        }
+
+        return $logo;
     }
 
     /**

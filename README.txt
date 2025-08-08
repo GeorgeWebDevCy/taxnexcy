@@ -4,11 +4,11 @@ Donate link: https://georgenicolaou.me/
 Tags: fluentforms, woocommerce, jcc
 Requires at least: 5.0
 Tested up to: 6.5
-Stable tag: 1.7.67
+Stable tag: 1.7.68
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
-Taxnex Cyprus converts FluentForms submissions into WooCommerce customers and redirects users to checkout for payment.
+Taxnex Cyprus converts FluentForms submissions into WooCommerce customers.
 Requires Fluent Forms 6.0.4 or higher and stores the rendered entry under the `_ff_entry_html` order meta key.
 
 == Description ==
@@ -23,6 +23,9 @@ Taxnex Cyprus checks for updates on its public GitHub repository, so no
 authentication token is required.
 
 == Changelog ==
+= 1.7.68 =
+* Remove redundant checkout redirect handling now managed by Fluent Forms.
+
 = 1.7.67 =
 * Restrict PDF generation to Form ID 4 to prevent missing form errors.
 

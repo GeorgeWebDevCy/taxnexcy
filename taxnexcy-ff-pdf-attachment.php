@@ -17,7 +17,7 @@ if ( ! class_exists( 'Taxnexcy_FF_PDF_Attach' ) ) :
 
 final class Taxnexcy_FF_PDF_Attach {
 
-    const VER                 = '1.1.3';
+    const VER                 = '1.1.4';
     const SESSION_KEY         = 'taxnexcy_ff_entry_map';
     const ORDER_META_PDF_PATH = '_ff_entry_pdf';
     const LOG_FILE            = 'taxnexcy-ffpdf.log';
@@ -206,13 +206,7 @@ final class Taxnexcy_FF_PDF_Attach {
 
                 if ( $method ) {
                     $params   = $method->getNumberOfParameters();
-                    $settings = [
-                        'file_name'   => basename( $dest ),
-                        'file_path'   => $dest,
-                        'save_to'     => dirname( $dest ),
-                        'paper_size'  => 'A4',
-                        'orientation' => 'portrait',
-                    ];
+                    $settings = $this->prepare_pdf_settings( $form_id, $entry_id, $dest );
 
                     if ( $params >= 4 ) {
                         // ($entryId, $formId, $filePath, $settings)
@@ -265,17 +259,16 @@ final class Taxnexcy_FF_PDF_Attach {
                     // Try common method names and signatures
                     $candidates = [
                         // method, args builder callback
-                        [ 'renderEntry', function() use ( $inst, $form_id, $entry_id, $dest ) {
-                            // Seen variants: (entryId, 'table'), (entryId, settings), etc.
+                        [ 'renderEntry', function() use ( $inst, $form_id, $entry_id ) {
                             if ( method_exists( $inst, 'renderEntry' ) ) {
-                                // If renderEntry returns HTML, try to convert via PDF manager inside add-on if available
-                                return $inst->renderEntry( (int) $entry_id, 'table' );
+                                $html = $inst->renderEntry( (int) $entry_id, 'table' );
+                                return $this->replace_dynamic_tags( $html, $form_id, $entry_id );
                             }
                             return false;
                         } ],
                         [ 'generatePdf', function() use ( $inst, $form_id, $entry_id, $dest ) {
                             if ( method_exists( $inst, 'generatePdf' ) ) {
-                                return $inst->generatePdf( (int) $form_id, (int) $entry_id, [ 'file_path' => $dest ] );
+                                return $inst->generatePdf( (int) $form_id, (int) $entry_id, $this->prepare_pdf_settings( $form_id, $entry_id, $dest ) );
                             }
                             return false;
                         } ],
@@ -325,13 +318,20 @@ final class Taxnexcy_FF_PDF_Attach {
                     ->first();
 
                 if ( $form ) {
-                    $tpl = new \FluentFormPdf\Classes\Templates\GeneralTemplate( $app );
+                    $tpl    = new \FluentFormPdf\Classes\Templates\GeneralTemplate( $app );
+
+                    $settings = $tpl->getDefaultSettings( $form );
+                    // Force landscape orientation and custom colours.
+                    $settings['orientation']   = 'landscape';
+                    $settings['primary_color'] = '#0054a6';
+                    $settings['text_color']    = '#000000';
+                    $settings                 = $this->replace_dynamic_tags( $settings, $form_id, $entry_id );
 
                     $feed = [
                         'id'           => 0,
                         'name'         => 'form-' . (int) $form_id,
                         'template_key' => 'general',
-                        'settings'     => $tpl->getDefaultSettings( $form ),
+                        'settings'     => $settings,
                     ];
 
                     $tmp = $tpl->outputPDF( (int) $entry_id, $feed, 'taxnexcy-' . $order_id, true );
@@ -373,6 +373,9 @@ final class Taxnexcy_FF_PDF_Attach {
             }
 
             if ( $html ) {
+                $html = $this->replace_dynamic_tags( $html, $form_id, $entry_id );
+                // Basic styling so the fallback is readable and landscape.
+                $html = '<style>body{font-family:Arial;color:#000;}table{width:100%;} @page {size: A4 landscape;}</style>' . $html;
                 // Write HTML with .pdf extension so you still get a downloadable artifact
                 file_put_contents( $dest, $html );
                 if ( file_exists( $dest ) && filesize( $dest ) > 0 ) {
@@ -450,6 +453,72 @@ final class Taxnexcy_FF_PDF_Attach {
         } else {
             echo '<p><strong>Fluent Forms PDF:</strong> File not found at ' . esc_html( $pdf ) . '</p>';
         }
+    }
+
+    /**
+     * Build settings for PDF generation with landscape orientation and colours.
+     */
+    private function prepare_pdf_settings( $form_id, $entry_id, $dest ) {
+        $settings = [
+            'file_name'   => basename( $dest ),
+            'file_path'   => $dest,
+            'save_to'     => dirname( $dest ),
+            'paper_size'  => 'A4',
+            'orientation' => 'landscape',
+            'primary_color' => '#0054a6',
+            'text_color'    => '#000000',
+        ];
+
+        return $this->replace_dynamic_tags( $settings, $form_id, $entry_id );
+    }
+
+    /**
+     * Replace simple dynamic tags in strings or arrays using submission data.
+     */
+    private function replace_dynamic_tags( $data, $form_id, $entry_id ) {
+        $fields = [];
+        try {
+            if ( function_exists( 'wpFluent' ) ) {
+                $submission = wpFluent()->table( 'fluentform_submissions' )->find( (int) $entry_id );
+                if ( $submission && ! empty( $submission->response ) ) {
+                    $decoded = json_decode( $submission->response, true );
+                    if ( is_array( $decoded ) ) {
+                        $fields = $decoded;
+                    }
+                }
+            }
+        } catch ( \Throwable $e ) {
+            // Ignore lookup failures.
+        }
+
+        $replacements = [
+            '{entry_id}'   => $entry_id,
+            '{form_id}'    => $form_id,
+            '{{entry_id}}' => $entry_id,
+            '{{form_id}}'  => $form_id,
+        ];
+
+        foreach ( $fields as $key => $val ) {
+            if ( is_scalar( $val ) ) {
+                $replacements[ '{' . $key . '}' ]   = $val;
+                $replacements[ '{{' . $key . '}}' ] = $val;
+                $replacements[ '[' . $key . ']' ]   = $val;
+            }
+        }
+
+        $apply = function ( &$item ) use ( $replacements ) {
+            if ( is_string( $item ) ) {
+                $item = strtr( $item, $replacements );
+            }
+        };
+
+        if ( is_array( $data ) ) {
+            array_walk_recursive( $data, $apply );
+        } else {
+            $apply( $data );
+        }
+
+        return $data;
     }
 
     /* ----------------

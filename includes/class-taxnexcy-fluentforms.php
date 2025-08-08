@@ -33,6 +33,9 @@ class Taxnexcy_FluentForms {
         add_action( 'woocommerce_email_order_meta', array( $this, 'display_email_entry' ), 10, 4 );
         add_action( 'woocommerce_admin_order_data_after_order_details', array( $this, 'display_admin_meta_fields' ), 15 );
         add_action( 'woocommerce_checkout_create_order', array( $this, 'add_session_fields_to_order' ), 10, 2 );
+        add_action( 'woocommerce_checkout_process', array( $this, 'log_checkout_request' ) );
+        add_action( 'woocommerce_checkout_order_processed', array( $this, 'log_checkout_processed' ), 10, 3 );
+        add_filter( 'woocommerce_add_error', array( $this, 'log_woocommerce_error' ) );
     }
 
     /**
@@ -323,6 +326,36 @@ class Taxnexcy_FluentForms {
         WC()->session->set( '_ff_entry_id', null );
         WC()->session->set( '_ff_entry_html', null );
         Taxnexcy_Logger::log( 'Added session fields to order ' . $order->get_id() );
+    }
+
+    /**
+     * Log checkout request data before WooCommerce processes it.
+     */
+    public function log_checkout_request() {
+        $posted = wc_clean( wp_unslash( $_POST ) );
+        Taxnexcy_Logger::log( 'Checkout process data: ' . wp_json_encode( $posted ) );
+    }
+
+    /**
+     * Log when an order is successfully processed at checkout.
+     *
+     * @param int      $order_id     The order ID.
+     * @param array    $posted_data  Sanitized checkout data.
+     * @param WC_Order $order        The order object.
+     */
+    public function log_checkout_processed( $order_id, $posted_data, $order ) {
+        Taxnexcy_Logger::log( 'Checkout order processed. ID: ' . $order_id . ' Data: ' . wp_json_encode( $posted_data ) );
+    }
+
+    /**
+     * Log any WooCommerce checkout errors.
+     *
+     * @param string $error Error message.
+     * @return string Unmodified error message.
+     */
+    public function log_woocommerce_error( $error ) {
+        Taxnexcy_Logger::log( 'WooCommerce error notice: ' . $error );
+        return $error;
     }
 
     /**

@@ -15,7 +15,7 @@ if ( ! class_exists( 'Taxnexcy_FF_PDF_Attach' ) ) :
 
 final class Taxnexcy_FF_PDF_Attach {
 
-    const VER                 = '1.0.7';
+    const VER                 = '1.0.8';
     const SESSION_KEY         = 'taxnexcy_ff_entry_map';
     const ORDER_META_PDF_PATH = '_ff_entry_pdf';
     const LOG_FILE            = 'taxnexcy-ffpdf.log';
@@ -190,13 +190,27 @@ final class Taxnexcy_FF_PDF_Attach {
         try {
             if ( class_exists( '\FluentFormPdf\Classes\Controller\GlobalPdfManager' ) ) {
                 $this->log( 'Trying GlobalPdfManager' );
-                $manager = new \FluentFormPdf\Classes\Controller\GlobalPdfManager( $app );
+                $manager  = new \FluentFormPdf\Classes\Controller\GlobalPdfManager( $app );
 
+                $pdf_info = null;
+                $variants = [
+                    [ $entry_id, $form_id ],
+                    [ $form_id, $entry_id ],
+                    [ $entry_id, $form_id, null ],
+                    [ $form_id, $entry_id, null ],
+                ];
 
-                try {
-                    $pdf_info = $manager->getPdf( $entry_id, $form_id );
-                } catch ( \ArgumentCountError $e ) {
-                    $pdf_info = $manager->getPdf( $form_id, $entry_id );
+                foreach ( $variants as $variant ) {
+                    try {
+                        $pdf_info = $manager->getPdf( ...$variant );
+                        break;
+                    } catch ( \ArgumentCountError $e ) {
+                        continue;
+                    } catch ( \Throwable $e ) {
+                        $this->log( 'GlobalPdfManager getPdf failed', [ 'msg' => $e->getMessage() ] );
+                        $pdf_info = null;
+                        break;
+                    }
                 }
 
                 if ( is_array( $pdf_info ) && ! empty( $pdf_info['path'] ) && file_exists( $pdf_info['path'] ) ) {

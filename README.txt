@@ -4,7 +4,7 @@ Donate link: https://georgenicolaou.me/
 Tags: fluentforms, woocommerce, jcc
 Requires at least: 5.0
 Tested up to: 6.5
-Stable tag: 1.7.45
+Stable tag: 1.7.46
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -23,6 +23,9 @@ Taxnex Cyprus checks for updates on its public GitHub repository, so no
 authentication token is required.
 
 == Changelog ==
+= 1.7.46 =
+* Switch to session-based Fluent Forms PDF generation, attach to Woo emails and log actions.
+
 = 1.7.45 =
 * Generate a PDF of the Fluent Form entry and attach it to WooCommerce order emails.
 

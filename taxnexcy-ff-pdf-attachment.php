@@ -15,7 +15,7 @@ if ( ! class_exists( 'Taxnexcy_FF_PDF_Attach' ) ) :
 
 final class Taxnexcy_FF_PDF_Attach {
 
-    const VER                 = '1.0.1';
+    const VER                 = '1.0.2';
     const SESSION_KEY         = 'taxnexcy_ff_entry_map';
     const ORDER_META_PDF_PATH = '_ff_entry_pdf';
     const LOG_FILE            = 'taxnexcy-ffpdf.log';
@@ -147,23 +147,41 @@ final class Taxnexcy_FF_PDF_Attach {
         // Try GlobalPdfManager first (newer method)
         try {
             if ( class_exists( '\\FluentFormPdf\\Classes\\Controller\\GlobalPdfManager' ) ) {
-                $manager  = new \FluentFormPdf\Classes\Controller\GlobalPdfManager();
-                // Newer versions accept (entry_id, form_id) or (form_id, entry_id) depending on release.
-                // Try both safely:
-                $pdf_info = null;
+                $manager = null;
 
+                // GlobalPdfManager expects an application container in newer releases.
                 try {
-                    $pdf_info = $manager->getPdf( $entry_id, $form_id );
-                } catch ( \ArgumentCountError $e ) {
-                    $pdf_info = $manager->getPdf( $form_id, $entry_id );
+                    $reflection = new \ReflectionClass( '\\FluentFormPdf\\Classes\\Controller\\GlobalPdfManager' );
+                    $ctor       = $reflection->getConstructor();
+                    if ( $ctor && $ctor->getNumberOfRequiredParameters() > 0 ) {
+                        $app = null;
+                        if ( function_exists( 'fluentFormPdf' ) ) {
+                            $app = fluentFormPdf();
+                        } elseif ( class_exists( '\\FluentFormPdf\\App\\App' ) && method_exists( '\\FluentFormPdf\\App\\App', 'getInstance' ) ) {
+                            $app = \FluentFormPdf\App\App::getInstance();
+                        }
+                        $manager = new \FluentFormPdf\Classes\Controller\GlobalPdfManager( $app );
+                    } else {
+                        $manager = new \FluentFormPdf\Classes\Controller\GlobalPdfManager();
+                    }
                 } catch ( \Throwable $e ) {
-                    // Fall through to TemplateManager
-                    $this->log( 'GlobalPdfManager variant A failed', [ 'msg' => $e->getMessage() ] );
+                    $this->log( 'GlobalPdfManager init failed', [ 'msg' => $e->getMessage() ] );
                 }
 
-                if ( is_array( $pdf_info ) && ! empty( $pdf_info['path'] ) && file_exists( $pdf_info['path'] ) ) {
-                    copy( $pdf_info['path'], $destination );
-                    return $destination;
+                if ( $manager ) {
+                    // Newer versions accept (entry_id, form_id) or (form_id, entry_id) depending on release.
+                    $pdf_info = null;
+
+                    try {
+                        $pdf_info = $manager->getPdf( $entry_id, $form_id );
+                    } catch ( \ArgumentCountError $e ) {
+                        $pdf_info = $manager->getPdf( $form_id, $entry_id );
+                    }
+
+                    if ( is_array( $pdf_info ) && ! empty( $pdf_info['path'] ) && file_exists( $pdf_info['path'] ) ) {
+                        copy( $pdf_info['path'], $destination );
+                        return $destination;
+                    }
                 }
             }
         } catch ( \Throwable $e ) {
@@ -173,11 +191,14 @@ final class Taxnexcy_FF_PDF_Attach {
         // Fallback: TemplateManager (older add-on)
         try {
             if ( class_exists( '\\FluentFormPdf\\Classes\\Templates\\TemplateManager' ) ) {
-                $template = new \FluentFormPdf\Classes\Templates\TemplateManager( $form_id );
-                $tmp      = $template->generatePdf( $entry_id ); // returns temporary file
-                if ( $tmp && file_exists( $tmp ) ) {
-                    copy( $tmp, $destination );
-                    return $destination;
+                $ref = new \ReflectionClass( '\\FluentFormPdf\\Classes\\Templates\\TemplateManager' );
+                if ( ! $ref->isAbstract() ) {
+                    $template = new \FluentFormPdf\Classes\Templates\TemplateManager( $form_id );
+                    $tmp      = $template->generatePdf( $entry_id ); // returns temporary file
+                    if ( $tmp && file_exists( $tmp ) ) {
+                        copy( $tmp, $destination );
+                        return $destination;
+                    }
                 }
             }
         } catch ( \Throwable $e ) {

@@ -64,15 +64,25 @@ final class Taxnexcy_FF_PDF_Attach {
      * Save the last FF submission (form + entry) into WC session so we can
      * find it during checkout → order creation.
      */
-    public function capture_ff_entry_in_session( $entry_id, $form_id, $form_data ) {
-        if ( (int) $form_id !== self::TARGET_FORM_ID ) {
-            $this->log( 'Ignoring FF submission for non-target form', [ 'form_id' => (int) $form_id ] );
+    public function capture_ff_entry_in_session( $entry_id, $form_data, $form ) {
+        $form_id = 0;
+
+        if ( is_array( $form ) && ! empty( $form['id'] ) ) {
+            $form_id = (int) $form['id'];
+        } elseif ( is_object( $form ) && ! empty( $form->id ) ) {
+            $form_id = (int) $form->id;
+        } elseif ( is_array( $form_data ) && ! empty( $form_data['form_id'] ) ) {
+            $form_id = (int) $form_data['form_id'];
+        }
+
+        if ( $form_id !== self::TARGET_FORM_ID ) {
+            $this->log( 'Ignoring FF submission for non-target form', [ 'form_id' => $form_id ] );
             return;
         }
 
         if ( function_exists( 'WC' ) && WC()->session ) {
             $map = [
-                'form_id'  => (int) $form_id,
+                'form_id'  => $form_id,
                 'entry_id' => (int) $entry_id,
             ];
             WC()->session->set( self::SESSION_KEY, $map );

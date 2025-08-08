@@ -4,7 +4,7 @@ Donate link: https://georgenicolaou.me/
 Tags: fluentforms, woocommerce, jcc
 Requires at least: 5.0
 Tested up to: 6.5
-Stable tag: 1.7.71
+Stable tag: 1.7.72
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -22,6 +22,10 @@ Taxnex Cyprus checks for updates on its public GitHub repository, so no
 authentication token is required.
 
 == Changelog ==
+= 1.7.72 =
+* Set PDF title to "Taxnex TaxisNet Submission for {user.name}".
+* Use Divi theme logo and site colours in generated PDFs.
+
 = 1.7.71 =
 * Generate landscape PDFs with basic colour styling.
 * Replace dynamic tags with actual submission values in generated PDFs.

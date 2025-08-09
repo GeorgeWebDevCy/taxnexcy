@@ -13,7 +13,7 @@ if ( ! class_exists( 'Taxnexcy_FF_PDF_Attach' ) ) :
 
 class Taxnexcy_FF_PDF_Attach {
 
-    const VER                 = '1.2.1';
+    const VER                 = '1.2.0';
     const SESSION_KEY         = 'taxnexcy_ff_entry_map';
     const ORDER_META_PDF_PATH = '_ff_entry_pdf';
     const LOG_FILE            = 'taxnexcy-ffpdf.log';
@@ -30,10 +30,7 @@ class Taxnexcy_FF_PDF_Attach {
 
         if ( ! class_exists( 'WooCommerce' ) ) return;
         if ( ! defined('FLUENTFORM') ) return;
-        $has_manager = class_exists( '\FluentFormPdf\Classes\Templates\TemplateManager' )
-            || class_exists( '\FluentForm\App\Services\Pdf\Templates\TemplateManager' )
-            || class_exists( '\FluentForm\App\Services\PDF\Templates\TemplateManager' );
-        if ( ! $has_manager ) return;
+        if ( ! class_exists( '\FluentFormPdf\Classes\Templates\TemplateManager' ) ) return;
 
         // Register our custom PDF template in the PDF add-on (if active)
         add_action('fluentform/loaded', function () {
@@ -113,10 +110,7 @@ class Taxnexcy_FF_PDF_Attach {
     }
 
     private function generate_via_custom_template( $form_id, $entry_id, $dest ) {
-        $has_template = class_exists('\\FluentFormPdf\\Classes\\Templates\\GeneralTemplate')
-            || class_exists('\\FluentForm\\App\\Services\\Pdf\\Templates\\GeneralTemplate')
-            || class_exists('\\FluentForm\\App\\Services\\PDF\\Templates\\GeneralTemplate');
-        if ( ! $has_template || ! function_exists('wpFluent') ) {
+        if ( ! class_exists('\\FluentFormPdf\\Classes\\Templates\\GeneralTemplate') || ! function_exists('wpFluent') ) {
             return false;
         }
         if ( ! class_exists('\\Taxnexcy_GN_Smartcode_Pdf_Template') ) {

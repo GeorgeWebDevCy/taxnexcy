@@ -17,7 +17,7 @@ if ( ! class_exists( 'Taxnexcy_FF_PDF_Attach' ) ) :
 
 final class Taxnexcy_FF_PDF_Attach {
 
-    const VER                 = '1.1.8';
+    const VER                 = '1.1.9';
     const SESSION_KEY         = 'taxnexcy_ff_entry_map';
     const ORDER_META_PDF_PATH = '_ff_entry_pdf';
     const LOG_FILE            = 'taxnexcy-ffpdf.log';
@@ -333,10 +333,16 @@ final class Taxnexcy_FF_PDF_Attach {
 
                     $feed = [
                         'id'           => 0,
-                        'name'         => 'form-' . (int) $form_id,
-                        'template_key' => 'general',
+                        'name'         => 'General', // Feed name
+                        'template_key' => 'general', // Feed slug
                         'settings'     => $settings,
                     ];
+
+                    $this->log( 'Using PDF feed', [
+                        'form_id'      => $form_id,
+                        'feed_name'    => 'General',
+                        'template_key' => 'general',
+                    ] );
 
                     $tmp = $tpl->outputPDF( (int) $entry_id, $feed, $base_name, true );
 
@@ -481,40 +487,7 @@ final class Taxnexcy_FF_PDF_Attach {
             'css'           => ':root{--ff-primary-color:#078586;--ff-text-color:#000000;}',
         ];
 
-        $logo = $this->get_divi_logo_url();
-        if ( $logo ) {
-            $settings['logo'] = $logo;
-        }
-        // Load a custom template if available so styling changes take effect.
-        $template_path = plugin_dir_path( __FILE__ ) . 'public/pdf-template.html';
-        if ( file_exists( $template_path ) ) {
-            $settings['template_key']   = 'custom';
-            $settings['template']       = 'custom';
-            $settings['use_custom_html'] = true;
-            $settings['custom_html']    = file_get_contents( $template_path );
-        }
-
         return $this->replace_dynamic_tags( $settings, $form_id, $entry_id );
-    }
-
-    /**
-     * Retrieve the logo URL from Divi theme settings or fallback to the site logo.
-     */
-    private function get_divi_logo_url() {
-        $logo    = '';
-        $options = get_option( 'et_divi' );
-        if ( is_array( $options ) && ! empty( $options['logo'] ) ) {
-            $logo = esc_url( $options['logo'] );
-        }
-
-        if ( ! $logo ) {
-            $logo_id = get_theme_mod( 'custom_logo' );
-            if ( $logo_id && function_exists( 'wp_get_attachment_image_url' ) ) {
-                $logo = wp_get_attachment_image_url( $logo_id, 'full' );
-            }
-        }
-
-        return $logo;
     }
 
     /**

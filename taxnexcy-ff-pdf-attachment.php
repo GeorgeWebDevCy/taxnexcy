@@ -165,7 +165,9 @@ final class Taxnexcy_FF_PDF_Attach {
         $base_name = 'taxnex-taxisnet-submission-{inputs.names.first_name}';
         $base_name = $this->replace_dynamic_tags( $base_name, $form_id, $entry_id );
         $base_name = sanitize_file_name( $base_name );
-        if ( ! $base_name ) {
+        if ( $base_name ) {
+            $base_name .= '-' . (int) $order_id;
+        } else {
             $base_name = sprintf( 'order-%d-form-%d-entry-%d', (int) $order_id, (int) $form_id, (int) $entry_id );
         }
         $filename = $base_name . '.pdf';
@@ -630,6 +632,31 @@ final class Taxnexcy_FF_PDF_Attach {
                     $replacements[ '{user.' . $key . '}' ]   = $val;
                     $replacements[ '{{user.' . $key . '}}' ] = $val;
                 }
+            }
+        }
+
+        // Fallback to form fields if user data is missing.
+        if ( ! isset( $replacements['{user.first_name}'] ) ) {
+            $first = $flat['names.first_name'] ?? $flat['first_name'] ?? '';
+            if ( $first !== '' ) {
+                $replacements['{user.first_name}']   = $first;
+                $replacements['{{user.first_name}}'] = $first;
+            }
+        }
+        if ( ! isset( $replacements['{user.last_name}'] ) ) {
+            $last = $flat['names.last_name'] ?? $flat['last_name'] ?? '';
+            if ( $last !== '' ) {
+                $replacements['{user.last_name}']   = $last;
+                $replacements['{{user.last_name}}'] = $last;
+            }
+        }
+        if ( ! isset( $replacements['{user.display_name}'] ) ) {
+            $first = $replacements['{user.first_name}'] ?? '';
+            $last  = $replacements['{user.last_name}'] ?? '';
+            $disp  = trim( $first . ' ' . $last );
+            if ( $disp !== '' ) {
+                $replacements['{user.display_name}']   = $disp;
+                $replacements['{{user.display_name}}'] = $disp;
             }
         }
 

@@ -70,6 +70,36 @@ class Taxnexcy_FluentForms {
     }
 
     /**
+     * Replace Fluent Forms smartcodes in a label with submitted values.
+     *
+     * @param string $label     Field label that may contain smartcodes.
+     * @param array  $form_data Submitted form data.
+     * @return string Label with any smartcodes replaced.
+     */
+    private function replace_label_smartcodes( $label, $form_data ) {
+        return preg_replace_callback(
+            '/{([^}]+)}/',
+            function ( $matches ) use ( $form_data ) {
+                $key = $matches[1];
+
+                if ( strpos( $key, 'dynamic.' ) === 0 ) {
+                    $key = substr( $key, 8 );
+                } elseif ( strpos( $key, 'user.' ) === 0 ) {
+                    $key = substr( $key, 5 );
+                }
+
+                $value = $form_data[ $key ] ?? '';
+                if ( is_array( $value ) ) {
+                    $value = wp_json_encode( $value );
+                }
+
+                return sanitize_text_field( $value );
+            },
+            $label
+        );
+    }
+
+    /**
      * Create a WooCommerce customer when a form is submitted.
      *
      * @param int   $entry_id Entry ID.
@@ -217,6 +247,7 @@ class Taxnexcy_FluentForms {
 
             $field_labels = $labels[ $base_key ] ?? '';
             $field_label  = is_array( $field_labels ) ? ( $field_labels['__label'] ?? ucwords( str_replace( '_', ' ', $sanitized_key ) ) ) : ( $field_labels ?: ucwords( str_replace( '_', ' ', $sanitized_key ) ) );
+            $field_label  = $this->replace_label_smartcodes( $field_label, $form_data );
 
             $legacy_fields[] = array(
                 'slug'  => $sanitized_key,

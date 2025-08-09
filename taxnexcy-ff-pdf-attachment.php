@@ -474,6 +474,11 @@ final class Taxnexcy_FF_PDF_Attach {
             'header_title'  => 'Taxnex TaxisNet Submission for {inputs.names.first_name} {inputs.names.last_name}',
             'title'         => 'Taxnex TaxisNet Submission for {inputs.names.first_name} {inputs.names.last_name}',
             'header_text'   => 'Taxnex TaxisNet Submission for {inputs.names.first_name} {inputs.names.last_name}',
+            // Explicit title fields for various PDF engines
+            'pdf_title'     => 'Taxnex TaxisNet Submission for {inputs.names.first_name} {inputs.names.last_name}',
+            'show_title'    => true,
+            // Basic CSS variables so colour settings are honoured
+            'css'           => ':root{--ff-primary-color:#078586;--ff-text-color:#000000;}',
         ];
 
         $logo = $this->get_divi_logo_url();
@@ -508,19 +513,31 @@ final class Taxnexcy_FF_PDF_Attach {
      * Replace dynamic tags and {inputs.*} smartcodes in strings or arrays using submission data.
      */
     private function replace_dynamic_tags( $data, $form_id, $entry_id ) {
-        $fields = [];
+        $fields   = [];
+        $user     = null;
+        $user_id  = 0;
         try {
             if ( function_exists( 'wpFluent' ) ) {
                 $submission = wpFluent()->table( 'fluentform_submissions' )->find( (int) $entry_id );
-                if ( $submission && ! empty( $submission->response ) ) {
-                    $decoded = json_decode( $submission->response, true );
-                    if ( is_array( $decoded ) ) {
-                        $fields = $decoded;
+                if ( $submission ) {
+                    $user_id = ! empty( $submission->user_id ) ? (int) $submission->user_id : 0;
+                    if ( ! empty( $submission->response ) ) {
+                        $decoded = json_decode( $submission->response, true );
+                        if ( is_array( $decoded ) ) {
+                            $fields = $decoded;
+                        }
                     }
                 }
             }
         } catch ( \Throwable $e ) {
             // Ignore lookup failures.
+        }
+
+        if ( ! $user_id && function_exists( 'get_current_user_id' ) ) {
+            $user_id = (int) get_current_user_id();
+        }
+        if ( $user_id && function_exists( 'get_userdata' ) ) {
+            $user = get_userdata( $user_id );
         }
 
         $flatten = function ( $array, $dot = '', $bracket = '' ) use ( &$flatten ) {
@@ -549,9 +566,28 @@ final class Taxnexcy_FF_PDF_Attach {
 
         foreach ( $flat as $key => $val ) {
             if ( is_scalar( $val ) ) {
-                $replacements[ '{' . $key . '}' ]         = $val;
-                $replacements[ '{{' . $key . '}}' ]       = $val;
-                $replacements[ '{inputs.' . $key . '}' ]  = $val;
+                $replacements[ '{' . $key . '}' ]          = $val;
+                $replacements[ '{{' . $key . '}}' ]        = $val;
+                $replacements[ '{inputs.' . $key . '}' ]   = $val;
+                $replacements[ '{dynamic.' . $key . '}' ]  = $val;
+                $replacements[ '{{dynamic.' . $key . '}}' ] = $val;
+            }
+        }
+
+        if ( $user ) {
+            $user_props = [
+                'ID'           => $user->ID,
+                'user_login'   => $user->user_login,
+                'user_email'   => $user->user_email,
+                'display_name' => $user->display_name,
+                'first_name'   => isset( $user->first_name ) ? $user->first_name : '',
+                'last_name'    => isset( $user->last_name ) ? $user->last_name : '',
+            ];
+            foreach ( $user_props as $key => $val ) {
+                if ( $val !== '' && $val !== null ) {
+                    $replacements[ '{user.' . $key . '}' ]   = $val;
+                    $replacements[ '{{user.' . $key . '}}' ] = $val;
+                }
             }
         }
 

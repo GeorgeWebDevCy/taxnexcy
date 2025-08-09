@@ -4,7 +4,7 @@ Donate link: https://georgenicolaou.me/
 Tags: fluentforms, woocommerce, jcc
 Requires at least: 5.0
 Tested up to: 6.5
-Stable tag: 1.7.96
+Stable tag: 1.7.97
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -21,12 +21,8 @@ This plugin integrates FluentForms with WooCommerce to create customers and proc
 Taxnex Cyprus checks for updates on its public GitHub repository, so no authentication token is required.
 
 == Changelog ==
-= 1.7.96 =
-* Mirror log entries to the PHP error log for easier debugging.
-
-= 1.7.91 =
-* Replace dynamic tokens in PDF HTML output so labels show submitted values.
-* Bump PDF helper to version 1.1.13.
+= 1.7.97 =
+* Revert plugin to stable 1.7.82 code base.
 
 = 1.7.90 =
 * Revert plugin to stable 1.7.82 code base.

@@ -39,34 +39,57 @@ class Taxnexcy_FluentForms {
     /**
      * Return Fluent Forms’ native HTML for an entry.
      *
-     * @param int $form_id  Form ID.
-     * @param int $entry_id Entry ID.
+     * @param int   $form_id   Form ID.
+     * @param int   $entry_id  Entry ID.
+     * @param array $form_data Optional submitted form data for smartcode replacement.
      * @return string HTML for the rendered entry.
      */
-    private function render_entry_html( $form_id, $entry_id ) {
+    private function render_entry_html( $form_id, $entry_id, $form_data = array() ) {
 
         if ( ! class_exists( '\\FluentForm\\App\\Services\\Submission\\SubmissionService' ) ) {
             return '';
         }
 
         $service = new SubmissionService();
+        $html    = '';
 
         // v6.x – first param is form_id
         if ( method_exists( $service, 'renderSubmission' ) ) {
             try {
-                return $service->renderSubmission( $form_id, $entry_id, 'table' );
+                $html = $service->renderSubmission( $form_id, $entry_id );
             } catch ( \ArgumentCountError $e ) {
                 // v5.x – first param is entry_id
-                return $service->renderSubmission( $entry_id, 'table' );
+                $html = $service->renderSubmission( $entry_id );
             }
+        } elseif ( method_exists( $service, 'renderEntry' ) ) {
+            // very old (<5.0) fallback
+            $html = $service->renderEntry( $entry_id );
         }
 
-        // very old (<5.0) fallback
-        if ( method_exists( $service, 'renderEntry' ) ) {
-            return $service->renderEntry( $entry_id, 'table' );
+        if ( $html && ! empty( $form_data ) ) {
+            $html = preg_replace_callback(
+                '/{([^}]+)}/',
+                function ( $matches ) use ( $form_data ) {
+                    $key = $matches[1];
+
+                    if ( strpos( $key, 'dynamic.' ) === 0 ) {
+                        $key = substr( $key, 8 );
+                    } elseif ( strpos( $key, 'user.' ) === 0 ) {
+                        $key = substr( $key, 5 );
+                    }
+
+                    $value = $form_data[ $key ] ?? '';
+                    if ( is_array( $value ) ) {
+                        $value = wp_json_encode( $value );
+                    }
+
+                    return esc_html( $value );
+                },
+                $html
+            );
         }
 
-        return '';
+        return $html;
     }
 
     /**
@@ -263,7 +286,7 @@ class Taxnexcy_FluentForms {
             WC()->session->set( 'taxnexcy_fields', $legacy_fields );
             WC()->session->set( '_ff_form_id', absint( $form['id'] ?? 0 ) );
             WC()->session->set( '_ff_entry_id', absint( $entry_id ) );
-            WC()->session->set( '_ff_entry_html', $this->render_entry_html( $form['id'], $entry_id ) );
+            WC()->session->set( '_ff_entry_html', $this->render_entry_html( $form['id'], $entry_id, $form_data ) );
             Taxnexcy_Logger::log( 'Stored fields in session: ' . wp_json_encode( $legacy_fields ) );
             Taxnexcy_Logger::log( 'Updated submission fields: ' . wp_json_encode( $legacy_fields ) );
         }

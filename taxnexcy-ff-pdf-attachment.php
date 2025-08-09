@@ -17,7 +17,7 @@ if ( ! class_exists( 'Taxnexcy_FF_PDF_Attach' ) ) :
 
 final class Taxnexcy_FF_PDF_Attach {
 
-    const VER                 = '1.1.13';
+    const VER                 = '1.1.14';
     const SESSION_KEY         = 'taxnexcy_ff_entry_map';
     const ORDER_META_PDF_PATH = '_ff_entry_pdf';
     const LOG_FILE            = 'taxnexcy-ffpdf.log';
@@ -670,6 +670,18 @@ final class Taxnexcy_FF_PDF_Attach {
             array_walk_recursive( $data, $apply );
         } else {
             $apply( $data );
+        }
+
+        if ( is_string( $data ) ) {
+            $data = preg_replace_callback(
+                '/<th([^>]*)>(.*?)<\/th>\s*<td([^>]*)>(.*?)<\/td>/s',
+                function ( $m ) {
+                    $label = trim( $m[2] );
+                    $value = trim( $m[4] );
+                    return '<th' . $m[1] . '>' . $label . ': ' . $value . '</th><td' . $m[3] . '>' . $value . '</td>';
+                },
+                $data
+            );
         }
 
         return $data;

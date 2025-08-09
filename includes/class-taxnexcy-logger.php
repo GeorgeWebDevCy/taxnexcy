@@ -14,15 +14,8 @@ class Taxnexcy_Logger {
      * @param string $message Message to log.
      */
     public static function log( $message ) {
-        $line = current_time( 'mysql' ) . ' - ' . $message;
-
-        // Mirror log entries to the PHP error log when debugging is enabled.
-        if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
-            error_log( $line );
-        }
-
         $logs   = get_option( self::OPTION_KEY, array() );
-        $logs[] = $line;
+        $logs[] = current_time( 'mysql' ) . ' - ' . $message;
         update_option( self::OPTION_KEY, $logs );
     }
 

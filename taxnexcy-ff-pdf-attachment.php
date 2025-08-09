@@ -17,7 +17,7 @@ if ( ! class_exists( 'Taxnexcy_FF_PDF_Attach' ) ) :
 
 final class Taxnexcy_FF_PDF_Attach {
 
-    const VER                 = '1.1.13';
+    const VER                 = '1.1.14';
     const SESSION_KEY         = 'taxnexcy_ff_entry_map';
     const ORDER_META_PDF_PATH = '_ff_entry_pdf';
     const LOG_FILE            = 'taxnexcy-ffpdf.log';
@@ -719,54 +719,69 @@ endif;
 
 new Taxnexcy_FF_PDF_Attach();
 
-// Replace dynamic tokens in Fluent Forms PDF HTML output so labels display
-// submitted values (e.g. selected tax year and user's first name).
-add_filter(
-    'fluentform/pdf_html_output',
-    function ( $html, $form, $entry ) {
-        if ( empty( $entry ) || empty( $entry->response ) ) {
-            return $html;
+// Ensure PDF body/header/footer are treated as HTML (so smartcodes render)
+add_filter('fluentform/pdf_html_format', function($parts){
+    if (!is_array($parts)) { $parts = array(); }
+    foreach (array('header','body','footer') as $p) {
+        if (!in_array($p, $parts, true)) { $parts[] = $p; }
+    }
+    return $parts;
+}, 10, 1);
+
+// Replace {dynamic.*}, {inputs.*}, and {user.*} placeholders anywhere in the final PDF HTML
+add_filter('fluentform/pdf_html_output', function($html, $form, $entry) {
+
+    // Collect responses as array
+    $responses = array();
+    if (isset($entry->response)) {
+        $responses = is_array($entry->response) ? $entry->response : json_decode($entry->response, true);
+    }
+    if (!is_array($responses)) { $responses = array(); }
+
+    // Helper to fetch a value from responses or user meta
+    $lookup = function($key) use ($responses, $entry) {
+        $val = '';
+
+        // direct match (e.g., tax_year, input_radio, first_name, etc.)
+        if (isset($responses[$key])) {
+            $val = $responses[$key];
+        } elseif ($key === 'first_name' && isset($responses['names']['first_name'])) {
+            // compound "Name" field support
+            $val = $responses['names']['first_name'];
+        } elseif ($key === 'last_name' && isset($responses['names']['last_name'])) {
+            $val = $responses['names']['last_name'];
         }
 
-        $responses = is_array( $entry->response ) ? $entry->response : json_decode( $entry->response, true );
-        if ( ! is_array( $responses ) ) {
-            return $html;
+        // Fallback to WP user meta for user.first_name / user.last_name
+        if (($key === 'first_name' || $key === 'last_name') && empty($val) && !empty($entry->user_id)) {
+            $meta = get_user_meta($entry->user_id, $key, true);
+            if ($meta) { $val = $meta; }
         }
 
-        // Extract submitted values.
-        $tax_year = ! empty( $responses['input_radio'] ) ? esc_html( $responses['input_radio'] ) : '';
-        $first_name = '';
-        if ( ! empty( $responses['first_name'] ) ) {
-            $first_name = esc_html( $responses['first_name'] );
-        } elseif ( ! empty( $responses['name'] ) ) {
-            // Single "name" field fallback.
-            $first_name = esc_html( $responses['name'] );
+        // Flatten arrays (checkboxes, etc.)
+        if (is_array($val)) {
+            $flat = array();
+            $it = new RecursiveIteratorIterator(new RecursiveArrayIterator($val));
+            foreach ($it as $v) {
+                if ($v !== '' && $v !== null) { $flat[] = $v; }
+            }
+            $val = implode(', ', array_unique(array_map('strval', $flat)));
         }
 
-        // Replace full sentences with dynamic values.
-        $html = str_replace(
-            'Have you stayed in Cyprus for more than 183 days during {dynamic.input_radio} ?',
-            'Have you stayed in Cyprus for more than 183 days during ' . $tax_year . ' ?',
-            $html
-        );
+        return is_scalar($val) ? (string) $val : '';
+    };
 
-        $html = str_replace(
-            'Hi {user.first_name}! Please choose a tax year',
-            'Hi ' . $first_name . '! Please choose a tax year',
-            $html
-        );
+    // Generic replacer for {dynamic.KEY}, {inputs.KEY}, {user.KEY}
+    $html = preg_replace_callback(
+        '/\{(?:dynamic|inputs|user)\.([a-zA-Z0-9_\.]+)\}/',
+        function($m) use ($lookup){
+            $key = $m[1];
+            $value = $lookup($key);
+            return $value !== '' ? esc_html($value) : $m[0]; // leave placeholder if no value
+        },
+        $html
+    );
 
-        // Replace remaining placeholders.
-        if ( $tax_year ) {
-            $html = str_replace( '{dynamic.input_radio}', $tax_year, $html );
-        }
-        if ( $first_name ) {
-            $html = str_replace( '{user.first_name}', $first_name, $html );
-        }
-
-        return $html;
-    },
-    10,
-    3
-);
+    return $html;
+}, 10, 3);
 

@@ -17,7 +17,7 @@ if ( ! class_exists( 'Taxnexcy_FF_PDF_Attach' ) ) :
 
 final class Taxnexcy_FF_PDF_Attach {
 
-    const VER                 = '1.1.5';
+    const VER                 = '1.1.6';
     const SESSION_KEY         = 'taxnexcy_ff_entry_map';
     const ORDER_META_PDF_PATH = '_ff_entry_pdf';
     const LOG_FILE            = 'taxnexcy-ffpdf.log';
@@ -161,7 +161,7 @@ final class Taxnexcy_FF_PDF_Attach {
         }
         $this->log( 'PDF directory ready', [ 'pdf_dir' => $pdf_dir ] );
 
-        $base_name = 'taxnex-taxisnet-submission-{user.name}';
+        $base_name = 'taxnex-taxisnet-submission-{inputs.names.first_name}';
         $base_name = $this->replace_dynamic_tags( $base_name, $form_id, $entry_id );
         $base_name = sanitize_file_name( $base_name );
         if ( ! $base_name ) {
@@ -471,9 +471,9 @@ final class Taxnexcy_FF_PDF_Attach {
             'orientation'   => 'landscape',
             'primary_color' => '#078586',
             'text_color'    => '#000000',
-            'header_title'  => 'Taxnex TaxisNet Submission for {user.name}',
-            'title'         => 'Taxnex TaxisNet Submission for {user.name}',
-            'header_text'   => 'Taxnex TaxisNet Submission for {user.name}',
+            'header_title'  => 'Taxnex TaxisNet Submission for {inputs.names.first_name} {inputs.names.last_name}',
+            'title'         => 'Taxnex TaxisNet Submission for {inputs.names.first_name} {inputs.names.last_name}',
+            'header_text'   => 'Taxnex TaxisNet Submission for {inputs.names.first_name} {inputs.names.last_name}',
         ];
 
         $logo = $this->get_divi_logo_url();
@@ -505,7 +505,7 @@ final class Taxnexcy_FF_PDF_Attach {
     }
 
     /**
-     * Replace simple dynamic tags in strings or arrays using submission data.
+     * Replace dynamic tags and {inputs.*} smartcodes in strings or arrays using submission data.
      */
     private function replace_dynamic_tags( $data, $form_id, $entry_id ) {
         $fields = [];
@@ -523,6 +523,23 @@ final class Taxnexcy_FF_PDF_Attach {
             // Ignore lookup failures.
         }
 
+        $flatten = function ( $array, $dot = '', $bracket = '' ) use ( &$flatten ) {
+            $out = [];
+            foreach ( $array as $key => $val ) {
+                $dot_key     = $dot ? $dot . '.' . $key : $key;
+                $bracket_key = $bracket ? $bracket . '[' . $key . ']' : $key;
+                if ( is_array( $val ) ) {
+                    $out = array_merge( $out, $flatten( $val, $dot_key, $bracket_key ) );
+                } else {
+                    $out[ $dot_key ]     = $val;
+                    $out[ $bracket_key ] = $val;
+                }
+            }
+            return $out;
+        };
+
+        $flat = $flatten( $fields );
+
         $replacements = [
             '{entry_id}'   => $entry_id,
             '{form_id}'    => $form_id,
@@ -530,11 +547,11 @@ final class Taxnexcy_FF_PDF_Attach {
             '{{form_id}}'  => $form_id,
         ];
 
-        foreach ( $fields as $key => $val ) {
+        foreach ( $flat as $key => $val ) {
             if ( is_scalar( $val ) ) {
-                $replacements[ '{' . $key . '}' ]   = $val;
-                $replacements[ '{{' . $key . '}}' ] = $val;
-                $replacements[ '[' . $key . ']' ]   = $val;
+                $replacements[ '{' . $key . '}' ]         = $val;
+                $replacements[ '{{' . $key . '}}' ]       = $val;
+                $replacements[ '{inputs.' . $key . '}' ]  = $val;
             }
         }
 

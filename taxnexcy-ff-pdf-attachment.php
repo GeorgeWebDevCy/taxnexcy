@@ -17,7 +17,7 @@ if ( ! class_exists( 'Taxnexcy_FF_PDF_Attach' ) ) :
 
 final class Taxnexcy_FF_PDF_Attach {
 
-    const VER                 = '1.1.6';
+    const VER                 = '1.1.8';
     const SESSION_KEY         = 'taxnexcy_ff_entry_map';
     const ORDER_META_PDF_PATH = '_ff_entry_pdf';
     const LOG_FILE            = 'taxnexcy-ffpdf.log';
@@ -484,6 +484,14 @@ final class Taxnexcy_FF_PDF_Attach {
         $logo = $this->get_divi_logo_url();
         if ( $logo ) {
             $settings['logo'] = $logo;
+        }
+        // Load a custom template if available so styling changes take effect.
+        $template_path = plugin_dir_path( __FILE__ ) . 'public/pdf-template.html';
+        if ( file_exists( $template_path ) ) {
+            $settings['template_key']   = 'custom';
+            $settings['template']       = 'custom';
+            $settings['use_custom_html'] = true;
+            $settings['custom_html']    = file_get_contents( $template_path );
         }
 
         return $this->replace_dynamic_tags( $settings, $form_id, $entry_id );

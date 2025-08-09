@@ -4,7 +4,7 @@ Donate link: https://georgenicolaou.me/
 Tags: fluentforms, woocommerce, jcc
 Requires at least: 5.0
 Tested up to: 6.5
-Stable tag: 1.7.74
+Stable tag: 1.7.76
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -22,6 +22,14 @@ Taxnex Cyprus checks for updates on its public GitHub repository, so no
 authentication token is required.
 
 == Changelog ==
+= 1.7.76 =
+* Ensure custom PDF template is used via TemplateManager settings.
+* Bump PDF helper to version 1.1.8.
+
+= 1.7.75 =
+* Load a custom template for generated PDFs so style changes are reflected.
+* Bump PDF helper to version 1.1.7.
+
 = 1.7.74 =
 * Replace user and dynamic smartcodes inside generated PDFs.
 * Apply form colours and titles to PDF output.

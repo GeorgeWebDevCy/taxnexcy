@@ -4,7 +4,7 @@ Donate link: https://georgenicolaou.me/
 Tags: fluentforms, woocommerce, jcc
 Requires at least: 5.0
 Tested up to: 6.5
-Stable tag: 1.7.79
+Stable tag: 1.7.80
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -23,6 +23,9 @@ Taxnex Cyprus checks for updates on its public GitHub repository, so no
 authentication token is required.
 
 == Changelog ==
+= 1.7.80 =
+* Load PDF feed settings from `fluentform_form_meta` table to avoid missing table errors.
+* Bump PDF helper to version 1.1.11.
 = 1.7.79 =
 * Remove hardcoded PDF logo and template overrides so feed settings apply.
 * Use the "General" feed when generating PDFs.

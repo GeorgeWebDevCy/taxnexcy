@@ -17,11 +17,12 @@ if ( ! class_exists( 'Taxnexcy_FF_PDF_Attach' ) ) :
 
 final class Taxnexcy_FF_PDF_Attach {
 
-    const VER                 = '1.1.9';
+    const VER                 = '1.1.10';
     const SESSION_KEY         = 'taxnexcy_ff_entry_map';
     const ORDER_META_PDF_PATH = '_ff_entry_pdf';
     const LOG_FILE            = 'taxnexcy-ffpdf.log';
     const TARGET_FORM_ID      = 4;
+    const PDF_FEED_ID        = 56; // Your Fluent Forms PDF feed id named "General"
 
     public function __construct() {
         add_action( 'plugins_loaded', [ $this, 'maybe_boot' ], 20 );
@@ -326,33 +327,75 @@ final class Taxnexcy_FF_PDF_Attach {
                 if ( $form ) {
                     $tpl      = new \FluentFormPdf\Classes\Templates\GeneralTemplate( $app );
 
-                    $settings = $tpl->getDefaultSettings( $form );
-                    $custom   = $this->prepare_pdf_settings( $form_id, $entry_id, $dest );
-                    $settings = array_merge( $settings, $custom );
-                    $settings = $this->replace_dynamic_tags( $settings, $form_id, $entry_id );
+                    // Try to load the real PDF Feed (ID 56) from the Fluent Forms PDF addon
+                    $feedRow   = null;
+                    $dbErr     = null;
 
-                    $feed = [
-                        'id'           => 0,
-                        'name'         => 'General', // Feed name
-                        'template_key' => 'general', // Feed slug
-                        'settings'     => $settings,
-                    ];
+                    try {
+                        if ( function_exists( 'wpFluent' ) ) {
+                            $db = wpFluent();
 
-                    $this->log( 'Using PDF feed', [
-                        'form_id'      => $form_id,
-                        'feed_name'    => 'General',
-                        'template_key' => 'general',
-                    ] );
+                            // Try common table names used by the PDF addon
+                            foreach ( [ 'fluentform_pdf_feeds', $db->db->prefix . 'fluentform_pdf_feeds', 'ff_pdf_feeds' ] as $table ) {
+                                try {
+                                    $maybe = $db->table( $table )->where( 'id', self::PDF_FEED_ID )->first();
+                                    if ( $maybe ) { $feedRow = $maybe; break; }
+                                } catch ( \Throwable $e ) {
+                                    $dbErr = $e->getMessage();
+                                }
+                            }
+                        }
+                    } catch ( \Throwable $e ) {
+                        $dbErr = $e->getMessage();
+                    }
 
+                    if ( $feedRow && ! empty( $feedRow->settings ) ) {
+                        // Use the feed’s own settings from the DB (decoded JSON), then replace dynamic tags
+                        $settings = json_decode( $feedRow->settings, true ) ?: [];
+                        $settings = $this->replace_dynamic_tags( $settings, $form_id, $entry_id );
+
+                        $feed = [
+                            'id'           => (int) ( $feedRow->id ?? self::PDF_FEED_ID ),
+                            'name'         => $feedRow->title        ?? 'General',
+                            'template_key' => $feedRow->template_key ?? 'general',
+                            'settings'     => $settings,
+                        ];
+
+                        $this->log( 'Using DB PDF feed', [
+                            'form_id'      => $form_id,
+                            'feed_id'      => $feed['id'],
+                            'feed_name'    => $feed['name'],
+                            'template_key' => $feed['template_key'],
+                        ] );
+                    } else {
+                        // Fallback: keep your previous behavior (default template + your overrides)
+                        // NOTE: getDefaultSettings + prepare_pdf_settings set orientation/colors/etc.
+                        $settings = $tpl->getDefaultSettings( $form );
+                        $custom   = $this->prepare_pdf_settings( $form_id, $entry_id, $dest );
+                        $settings = array_merge( $settings, $custom );
+                        $settings = $this->replace_dynamic_tags( $settings, $form_id, $entry_id );
+
+                        $feed = [
+                            'id'           => 0,
+                            'name'         => 'General',
+                            'template_key' => 'general',
+                            'settings'     => $settings,
+                        ];
+
+                        $this->log( 'Using fallback PDF feed (default settings)', [
+                            'form_id'  => $form_id,
+                            'db_error' => $dbErr,
+                        ] );
+                    }
+
+                    // Generate the PDF using the resolved $feed
                     $tmp = $tpl->outputPDF( (int) $entry_id, $feed, $base_name, true );
 
                     if ( $tmp && file_exists( $tmp ) ) {
                         copy( $tmp, $dest );
-                        $this->log( 'GeneralTemplate generated file', [ 'file' => $dest ] );
+                        $this->log( 'PDF generated', [ 'file' => $dest ] );
                         return $dest;
                     }
-
-                    $this->log( 'GeneralTemplate outputPDF returned invalid path', [ 'file' => $tmp ] );
                 } else {
                     $this->log( 'GeneralTemplate could not find form', [ 'form_id' => $form_id ] );
                 }

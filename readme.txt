@@ -4,7 +4,7 @@ Donate link: https://georgenicolaou.me/
 Tags: fluentforms, woocommerce, jcc
 Requires at least: 5.0
 Tested up to: 6.5
-Stable tag: 1.7.89
+Stable tag: 1.7.90
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -21,25 +21,9 @@ This plugin integrates FluentForms with WooCommerce to create customers and proc
 Taxnex Cyprus checks for updates on its public GitHub repository, so no authentication token is required.
 
 == Changelog ==
-= 1.7.89 =
-* Revert to previous stable release.
+= 1.7.90 =
+* Revert plugin to stable 1.7.82 code base.
 
-= 1.7.87 =
-* Use Fluent Forms' default entry HTML output.
-* Replace smartcodes inside rendered labels with submitted values.
-
-= 1.7.86 =
-* Replace smartcodes within PDF body so {all_data} labels show submitted values.
-* Bump helper to version 1.1.15.
-
-= 1.7.85 =
-* Include submitted values in generated PDFs and bump helper version.
-
-= 1.7.84 =
-* Append submitted values to stored field labels and log the updated structure.
-
-= 1.7.83 =
-* Replace smartcodes in stored field labels with submitted values.
 = 1.7.82 =
 * Replace smartcodes in form labels so user and dynamic values appear in PDFs.
 * Append WooCommerce order IDs to generated PDF filenames.

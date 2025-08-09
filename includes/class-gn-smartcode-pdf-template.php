@@ -10,17 +10,7 @@ use FluentForm\Framework\Foundation\Application;
 
 if ( ! class_exists( 'Taxnexcy_GN_Smartcode_Pdf_Template' ) ) :
 
-if ( class_exists( '\FluentFormPdf\Classes\Templates\TemplateManager' ) ) {
-    class Taxnexcy_Pdf_Template_Base extends \FluentFormPdf\Classes\Templates\TemplateManager {}
-} elseif ( class_exists( '\FluentForm\App\Services\Pdf\Templates\TemplateManager' ) ) {
-    class Taxnexcy_Pdf_Template_Base extends \FluentForm\App\Services\Pdf\Templates\TemplateManager {}
-} elseif ( class_exists( '\FluentForm\App\Services\PDF\Templates\TemplateManager' ) ) {
-    class Taxnexcy_Pdf_Template_Base extends \FluentForm\App\Services\PDF\Templates\TemplateManager {}
-} else {
-    class Taxnexcy_Pdf_Template_Base {}
-}
-
-class Taxnexcy_GN_Smartcode_Pdf_Template extends Taxnexcy_Pdf_Template_Base
+class Taxnexcy_GN_Smartcode_Pdf_Template extends \FluentFormPdf\Classes\Templates\TemplateManager
 {
     public function __construct(Application $app) { parent::__construct($app); }
 

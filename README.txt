@@ -4,7 +4,7 @@ Donate link: https://georgenicolaou.me/
 Tags: fluentforms, woocommerce, jcc
 Requires at least: 5.0
 Tested up to: 6.5
-Stable tag: 1.7.88
+Stable tag: 1.7.89
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -23,12 +23,8 @@ Taxnex Cyprus checks for updates on its public GitHub repository, so no
 authentication token is required.
 
 == Changelog ==
-= 1.7.88 =
-* Restore PDF generation after upstream class name changes.
-
-= 1.7.87 =
-* Use Fluent Forms' default entry HTML output.
-* Replace smartcodes inside rendered labels with submitted values.
+= 1.7.89 =
+* Revert to previous stable release.
 
 = 1.7.86 =
 * Replace smartcodes within PDF body so {all_data} labels show submitted values.

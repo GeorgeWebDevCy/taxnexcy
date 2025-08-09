@@ -249,10 +249,13 @@ class Taxnexcy_FluentForms {
             $field_label  = is_array( $field_labels ) ? ( $field_labels['__label'] ?? ucwords( str_replace( '_', ' ', $sanitized_key ) ) ) : ( $field_labels ?: ucwords( str_replace( '_', ' ', $sanitized_key ) ) );
             $field_label  = $this->replace_label_smartcodes( $field_label, $form_data );
 
+            $field_value  = is_array( $value ) ? wp_json_encode( $value ) : sanitize_text_field( $value );
+            $field_label .= ': ' . $field_value;
+
             $legacy_fields[] = array(
                 'slug'  => $sanitized_key,
                 'label' => $field_label,
-                'value' => is_array( $value ) ? wp_json_encode( $value ) : sanitize_text_field( $value ),
+                'value' => $field_value,
             );
         }
 
@@ -262,6 +265,7 @@ class Taxnexcy_FluentForms {
             WC()->session->set( '_ff_entry_id', absint( $entry_id ) );
             WC()->session->set( '_ff_entry_html', $this->render_entry_html( $form['id'], $entry_id ) );
             Taxnexcy_Logger::log( 'Stored fields in session: ' . wp_json_encode( $legacy_fields ) );
+            Taxnexcy_Logger::log( 'Updated submission fields: ' . wp_json_encode( $legacy_fields ) );
         }
     }
     /**

@@ -17,7 +17,7 @@ if ( ! class_exists( 'Taxnexcy_FF_PDF_Attach' ) ) :
 
 final class Taxnexcy_FF_PDF_Attach {
 
-    const VER                 = '1.1.11';
+    const VER                 = '1.1.12';
     const SESSION_KEY         = 'taxnexcy_ff_entry_map';
     const ORDER_META_PDF_PATH = '_ff_entry_pdf';
     const LOG_FILE            = 'taxnexcy-ffpdf.log';
@@ -367,10 +367,14 @@ final class Taxnexcy_FF_PDF_Attach {
                         $settings = $decoded['settings'] ?? $decoded;
                         $settings = $this->replace_dynamic_tags( $settings, $form_id, $entry_id );
 
+                        // Determine template slug from multiple possible keys and expose it consistently
+                        $template_key = $feedRow->template_key ?? ( $decoded['template_key'] ?? ( $decoded['template'] ?? 'general' ) );
+
                         $feed = [
                             'id'           => (int) ( $feedRow->id ?? self::PDF_FEED_ID ),
                             'name'         => $feedRow->title        ?? ( $decoded['title'] ?? 'General' ),
-                            'template_key' => $feedRow->template_key ?? ( $decoded['template_key'] ?? 'general' ),
+                            'template'     => $template_key,
+                            'template_key' => $template_key,
                             'settings'     => $settings,
                         ];
 
@@ -391,6 +395,7 @@ final class Taxnexcy_FF_PDF_Attach {
                         $feed = [
                             'id'           => 0,
                             'name'         => 'General',
+                            'template'     => 'general',
                             'template_key' => 'general',
                             'settings'     => $settings,
                         ];

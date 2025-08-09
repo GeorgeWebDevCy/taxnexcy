@@ -17,7 +17,7 @@ if ( ! class_exists( 'Taxnexcy_FF_PDF_Attach' ) ) :
 
 final class Taxnexcy_FF_PDF_Attach {
 
-    const VER                 = '1.1.10';
+    const VER                 = '1.1.11';
     const SESSION_KEY         = 'taxnexcy_ff_entry_map';
     const ORDER_META_PDF_PATH = '_ff_entry_pdf';
     const LOG_FILE            = 'taxnexcy-ffpdf.log';
@@ -336,10 +336,21 @@ final class Taxnexcy_FF_PDF_Attach {
                             $db = wpFluent();
 
                             // Try common table names used by the PDF addon
-                            foreach ( [ 'fluentform_pdf_feeds', $db->db->prefix . 'fluentform_pdf_feeds', 'ff_pdf_feeds' ] as $table ) {
+                            foreach (
+                                [
+                                    'fluentform_pdf_feeds',
+                                    $db->db->prefix . 'fluentform_pdf_feeds',
+                                    'ff_pdf_feeds',
+                                    'fluentform_form_meta',
+                                    $db->db->prefix . 'fluentform_form_meta',
+                                ] as $table
+                            ) {
                                 try {
                                     $maybe = $db->table( $table )->where( 'id', self::PDF_FEED_ID )->first();
-                                    if ( $maybe ) { $feedRow = $maybe; break; }
+                                    if ( $maybe ) {
+                                        $feedRow = $maybe;
+                                        break;
+                                    }
                                 } catch ( \Throwable $e ) {
                                     $dbErr = $e->getMessage();
                                 }
@@ -349,15 +360,17 @@ final class Taxnexcy_FF_PDF_Attach {
                         $dbErr = $e->getMessage();
                     }
 
-                    if ( $feedRow && ! empty( $feedRow->settings ) ) {
+                    if ( $feedRow && ( ! empty( $feedRow->settings ) || ! empty( $feedRow->value ) ) ) {
                         // Use the feed’s own settings from the DB (decoded JSON), then replace dynamic tags
-                        $settings = json_decode( $feedRow->settings, true ) ?: [];
+                        $raw      = $feedRow->settings ?? $feedRow->value;
+                        $decoded  = json_decode( $raw, true ) ?: [];
+                        $settings = $decoded['settings'] ?? $decoded;
                         $settings = $this->replace_dynamic_tags( $settings, $form_id, $entry_id );
 
                         $feed = [
                             'id'           => (int) ( $feedRow->id ?? self::PDF_FEED_ID ),
-                            'name'         => $feedRow->title        ?? 'General',
-                            'template_key' => $feedRow->template_key ?? 'general',
+                            'name'         => $feedRow->title        ?? ( $decoded['title'] ?? 'General' ),
+                            'template_key' => $feedRow->template_key ?? ( $decoded['template_key'] ?? 'general' ),
                             'settings'     => $settings,
                         ];
 

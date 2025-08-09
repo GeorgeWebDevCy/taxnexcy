@@ -17,7 +17,7 @@ if ( ! class_exists( 'Taxnexcy_FF_PDF_Attach' ) ) :
 
 final class Taxnexcy_FF_PDF_Attach {
 
-    const VER                 = '1.1.14';
+    const VER                 = '1.1.15';
     const SESSION_KEY         = 'taxnexcy_ff_entry_map';
     const ORDER_META_PDF_PATH = '_ff_entry_pdf';
     const LOG_FILE            = 'taxnexcy-ffpdf.log';
@@ -529,6 +529,33 @@ final class Taxnexcy_FF_PDF_Attach {
     }
 
     /**
+     * Render the form entry to HTML so we can replace smartcodes in labels.
+     */
+    private function get_entry_html( $form_id, $entry_id ) {
+        $html = '';
+
+        try {
+            if ( class_exists( '\FluentForm\App\Services\Submission\SubmissionService' ) ) {
+                $service = new \FluentForm\App\Services\Submission\SubmissionService();
+
+                if ( method_exists( $service, 'renderEntryToHtml' ) ) {
+                    $html = $service->renderEntryToHtml( (int) $entry_id, [ 'format' => 'table' ] );
+                } elseif ( method_exists( $service, 'renderEntry' ) ) {
+                    $html = $service->renderEntry( (int) $entry_id, 'table' );
+                }
+            }
+        } catch ( \Throwable $e ) {
+            // Ignore rendering errors.
+        }
+
+        if ( $html ) {
+            $html = $this->replace_dynamic_tags( $html, $form_id, $entry_id );
+        }
+
+        return $html;
+    }
+
+    /**
      * Build settings for PDF generation with landscape orientation and colours.
      */
     private function prepare_pdf_settings( $form_id, $entry_id, $dest ) {
@@ -549,6 +576,12 @@ final class Taxnexcy_FF_PDF_Attach {
             // Basic CSS variables so colour settings are honoured
             'css'           => ':root{--ff-primary-color:#078586;--ff-text-color:#000000;}',
         ];
+
+        $body = $this->get_entry_html( $form_id, $entry_id );
+        if ( $body ) {
+            $settings['custom_html'] = $body;
+            $settings['body']        = $body;
+        }
 
         return $this->replace_dynamic_tags( $settings, $form_id, $entry_id );
     }

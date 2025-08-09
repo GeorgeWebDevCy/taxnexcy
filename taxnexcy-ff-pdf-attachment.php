@@ -21,7 +21,7 @@ if ( ! function_exists( 'is_wp_error' ) ) {
 
 final class Taxnexcy_FF_PDF_Attach {
 
-    const VER                 = '1.1.14';
+    const VER                 = '1.1.15';
     const SESSION_KEY         = 'taxnexcy_ff_entry_map';
     const ORDER_META_PDF_PATH = '_ff_entry_pdf';
     const LOG_FILE            = 'taxnexcy-ffpdf.log';
@@ -163,7 +163,13 @@ final class Taxnexcy_FF_PDF_Attach {
      */
     private function generate_pdf_for_entry( $form_id, $entry_id, $feed_id ) {
         try {
-            if ( ! class_exists( '\FluentFormPro\Pdf' ) && ! class_exists( '\FluentFormPro\Pdf\Pdf' ) ) {
+            // Check for either the legacy or new PDF addon namespaces.
+            if (
+                ! class_exists('\FluentFormPdf\Classes\PdfBuilder') &&
+                ! class_exists('\FluentFormPro\Pdf\Classes\PdfBuilder') &&
+                ! class_exists('\FluentFormPdf\Classes\TemplateManager') &&
+                ! class_exists('\FluentFormPro\Pdf\Classes\TemplateManager')
+            ) {
                 $this->log( 'PDF addon class not found' );
                 return false;
             }
@@ -184,10 +190,23 @@ final class Taxnexcy_FF_PDF_Attach {
             $dest     = trailingslashit( $pdf_dir ) . $filename;
 
             // Generate via PDF feed manager if available
-            if ( class_exists( '\FluentFormPro\Pdf\Classes\PdfBuilder' ) ) {
+            if ( class_exists('\FluentFormPdf\Classes\PdfBuilder') ) {
                 $this->log( "Attempting PdfBuilder for feed_id={$feed_id}" );
 
-                // Newer API
+                // Newer PDF addon
+                $builder = new \FluentFormPdf\Classes\PdfBuilder( $form_id, $entry_id, $feed_id );
+                $pdf     = $builder->generate();
+                if ( is_array( $pdf ) && ! empty( $pdf['path'] ) && file_exists( $pdf['path'] ) ) {
+                    // Copy to our folder
+                    copy( $pdf['path'], $dest );
+                    $this->log( 'PdfBuilder generated to: ' . $pdf['path'] );
+                    return $dest;
+                }
+                $this->log( 'PdfBuilder: response unexpected: ' . print_r( $pdf, true ) );
+            } elseif ( class_exists('\FluentFormPro\Pdf\Classes\PdfBuilder') ) {
+                $this->log( "Attempting PdfBuilder for feed_id={$feed_id}" );
+
+                // Legacy API
                 $builder = new \FluentFormPro\Pdf\Classes\PdfBuilder( $form_id, $entry_id, $feed_id );
                 $pdf     = $builder->generate();
                 if ( is_array( $pdf ) && ! empty( $pdf['path'] ) && file_exists( $pdf['path'] ) ) {
@@ -200,7 +219,17 @@ final class Taxnexcy_FF_PDF_Attach {
             }
 
             // Fallback: if template manager exists, try to render manually
-            if ( class_exists( '\FluentFormPro\Pdf\Classes\TemplateManager' ) ) {
+            if ( class_exists('\FluentFormPdf\Classes\TemplateManager') ) {
+                $this->log( "Attempting TemplateManager fallback for feed_id={$feed_id}" );
+                $tm = new \FluentFormPdf\Classes\TemplateManager( $form_id, $entry_id, $feed_id );
+                $pdf = $tm->generate();
+                if ( is_array( $pdf ) && ! empty( $pdf['path'] ) && file_exists( $pdf['path'] ) ) {
+                    copy( $pdf['path'], $dest );
+                    $this->log( 'TemplateManager generated to: ' . $pdf['path'] );
+                    return $dest;
+                }
+                $this->log( 'TemplateManager: response unexpected: ' . print_r( $pdf, true ) );
+            } elseif ( class_exists('\FluentFormPro\Pdf\Classes\TemplateManager') ) {
                 $this->log( "Attempting TemplateManager fallback for feed_id={$feed_id}" );
                 $tm = new \FluentFormPro\Pdf\Classes\TemplateManager( $form_id, $entry_id, $feed_id );
                 $pdf = $tm->generate();

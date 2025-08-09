@@ -21,12 +21,19 @@ if ( ! function_exists( 'is_wp_error' ) ) {
 
 final class Taxnexcy_FF_PDF_Attach {
 
-    const VER                 = '1.1.15';
+    const VER                 = '1.1.16';
     const SESSION_KEY         = 'taxnexcy_ff_entry_map';
     const ORDER_META_PDF_PATH = '_ff_entry_pdf';
     const LOG_FILE            = 'taxnexcy-ffpdf.log';
     const TARGET_FORM_ID      = 4;
     const PDF_FEED_ID        = 56; // Your Fluent Forms PDF feed id named "General"
+
+    /**
+     * Currently processed order ID for logging context.
+     *
+     * @var int
+     */
+    private $current_order_id = 0;
 
     public function __construct() {
         add_action( 'plugins_loaded', [ $this, 'maybe_boot' ], 20 );
@@ -109,8 +116,11 @@ final class Taxnexcy_FF_PDF_Attach {
      * @param array    $data
      */
     public function maybe_generate_pdf_on_order( $order, $data ) {
+        $order_id              = $order ? $order->get_id() : 0;
+        $this->current_order_id = $order_id;
+        $this->log( '--- START order ---' );
+
         try {
-            $order_id = $order ? $order->get_id() : 0;
             $this->log( 'maybe_generate_pdf_on_order for order #' . $order_id );
 
             $entry_id = $this->get_entry_id_for_form( self::TARGET_FORM_ID );
@@ -119,6 +129,7 @@ final class Taxnexcy_FF_PDF_Attach {
                 return;
             }
 
+            $this->log( 'Generating PDF for entry_id=' . $entry_id );
             // Generate the PDF using Fluent Forms PDF add-on
             $pdf_path = $this->generate_pdf_for_entry( self::TARGET_FORM_ID, $entry_id, self::PDF_FEED_ID );
             if ( ! $pdf_path || ! file_exists( $pdf_path ) ) {
@@ -133,6 +144,9 @@ final class Taxnexcy_FF_PDF_Attach {
             $this->log( 'PDF generated and saved to order: ' . $pdf_path );
         } catch ( \Throwable $e ) {
             $this->log( 'Error in maybe_generate_pdf_on_order: ' . $e->getMessage() );
+        } finally {
+            $this->log( '--- END order ---' );
+            $this->current_order_id = 0;
         }
     }
 
@@ -163,6 +177,8 @@ final class Taxnexcy_FF_PDF_Attach {
      */
     private function generate_pdf_for_entry( $form_id, $entry_id, $feed_id ) {
         try {
+            $this->log( sprintf( 'generate_pdf_for_entry start: form_id=%d, entry_id=%d, feed_id=%d', $form_id, $entry_id, $feed_id ) );
+
             // Check for either the legacy or new PDF addon namespaces.
             if (
                 ! class_exists('\FluentFormPdf\Classes\PdfBuilder') &&
@@ -180,6 +196,7 @@ final class Taxnexcy_FF_PDF_Attach {
             }
 
             $upload_dir = wp_upload_dir();
+            $this->log( 'wp_upload_dir => ' . print_r( $upload_dir, true ) );
             $pdf_dir    = trailingslashit( $upload_dir['basedir'] ) . 'taxnexcy-pdfs';
             if ( ! file_exists( $pdf_dir ) ) {
                 wp_mkdir_p( $pdf_dir );
@@ -188,6 +205,7 @@ final class Taxnexcy_FF_PDF_Attach {
             // Build filename
             $filename = sprintf( 'ff_form_%d_entry_%d.pdf', $form_id, $entry_id );
             $dest     = trailingslashit( $pdf_dir ) . $filename;
+            $this->log( 'Destination path => ' . $dest );
 
             // Generate via PDF feed manager if available
             if ( class_exists('\FluentFormPdf\Classes\PdfBuilder') ) {
@@ -198,9 +216,11 @@ final class Taxnexcy_FF_PDF_Attach {
                 $pdf     = $builder->generate();
                 if ( is_array( $pdf ) && ! empty( $pdf['path'] ) && file_exists( $pdf['path'] ) ) {
                     // Copy to our folder
-                    copy( $pdf['path'], $dest );
-                    $this->log( 'PdfBuilder generated to: ' . $pdf['path'] );
-                    return $dest;
+                    if ( @copy( $pdf['path'], $dest ) ) {
+                        $this->log( 'PdfBuilder generated to: ' . $pdf['path'] );
+                        return $dest;
+                    }
+                    $this->log( 'Failed to copy PdfBuilder output from ' . $pdf['path'] . ' to ' . $dest );
                 }
                 $this->log( 'PdfBuilder: response unexpected: ' . print_r( $pdf, true ) );
             } elseif ( class_exists('\FluentFormPro\Pdf\Classes\PdfBuilder') ) {
@@ -211,9 +231,11 @@ final class Taxnexcy_FF_PDF_Attach {
                 $pdf     = $builder->generate();
                 if ( is_array( $pdf ) && ! empty( $pdf['path'] ) && file_exists( $pdf['path'] ) ) {
                     // Copy to our folder
-                    copy( $pdf['path'], $dest );
-                    $this->log( 'PdfBuilder generated to: ' . $pdf['path'] );
-                    return $dest;
+                    if ( @copy( $pdf['path'], $dest ) ) {
+                        $this->log( 'PdfBuilder generated to: ' . $pdf['path'] );
+                        return $dest;
+                    }
+                    $this->log( 'Failed to copy PdfBuilder output from ' . $pdf['path'] . ' to ' . $dest );
                 }
                 $this->log( 'PdfBuilder: response unexpected: ' . print_r( $pdf, true ) );
             }
@@ -224,9 +246,11 @@ final class Taxnexcy_FF_PDF_Attach {
                 $tm = new \FluentFormPdf\Classes\TemplateManager( $form_id, $entry_id, $feed_id );
                 $pdf = $tm->generate();
                 if ( is_array( $pdf ) && ! empty( $pdf['path'] ) && file_exists( $pdf['path'] ) ) {
-                    copy( $pdf['path'], $dest );
-                    $this->log( 'TemplateManager generated to: ' . $pdf['path'] );
-                    return $dest;
+                    if ( @copy( $pdf['path'], $dest ) ) {
+                        $this->log( 'TemplateManager generated to: ' . $pdf['path'] );
+                        return $dest;
+                    }
+                    $this->log( 'Failed to copy TemplateManager output from ' . $pdf['path'] . ' to ' . $dest );
                 }
                 $this->log( 'TemplateManager: response unexpected: ' . print_r( $pdf, true ) );
             } elseif ( class_exists('\FluentFormPro\Pdf\Classes\TemplateManager') ) {
@@ -234,9 +258,11 @@ final class Taxnexcy_FF_PDF_Attach {
                 $tm = new \FluentFormPro\Pdf\Classes\TemplateManager( $form_id, $entry_id, $feed_id );
                 $pdf = $tm->generate();
                 if ( is_array( $pdf ) && ! empty( $pdf['path'] ) && file_exists( $pdf['path'] ) ) {
-                    copy( $pdf['path'], $dest );
-                    $this->log( 'TemplateManager generated to: ' . $pdf['path'] );
-                    return $dest;
+                    if ( @copy( $pdf['path'], $dest ) ) {
+                        $this->log( 'TemplateManager generated to: ' . $pdf['path'] );
+                        return $dest;
+                    }
+                    $this->log( 'Failed to copy TemplateManager output from ' . $pdf['path'] . ' to ' . $dest );
                 }
                 $this->log( 'TemplateManager: response unexpected: ' . print_r( $pdf, true ) );
             }
@@ -257,6 +283,7 @@ final class Taxnexcy_FF_PDF_Attach {
      * Attach generated PDF to selected WooCommerce emails.
      */
     public function attach_pdf_to_emails( $attachments, $email_id, $order ) {
+        $this->current_order_id = $order instanceof \WC_Order ? $order->get_id() : 0;
         try {
             if ( ! $order instanceof \WC_Order ) {
                 return $attachments;
@@ -282,6 +309,8 @@ final class Taxnexcy_FF_PDF_Attach {
         } catch ( \Throwable $e ) {
             $this->log( 'attach_pdf_to_emails error: ' . $e->getMessage() );
             return $attachments;
+        } finally {
+            $this->current_order_id = 0;
         }
     }
 
@@ -319,6 +348,10 @@ final class Taxnexcy_FF_PDF_Attach {
      * --------------------------------------- */
 
     private function log( $message, $context = [] ) {
+        if ( $this->current_order_id ) {
+            $message = '[order ' . $this->current_order_id . '] ' . $message;
+        }
+
         if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
             $prefix = '[Taxnexcy PDF] ';
             if ( ! empty( $context ) ) {

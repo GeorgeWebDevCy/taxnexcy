@@ -17,7 +17,7 @@ if ( ! class_exists( 'Taxnexcy_FF_PDF_Attach' ) ) :
 
 final class Taxnexcy_FF_PDF_Attach {
 
-    const VER                 = '1.1.12';
+    const VER                 = '1.1.13';
     const SESSION_KEY         = 'taxnexcy_ff_entry_map';
     const ORDER_META_PDF_PATH = '_ff_entry_pdf';
     const LOG_FILE            = 'taxnexcy-ffpdf.log';
@@ -718,4 +718,55 @@ final class Taxnexcy_FF_PDF_Attach {
 endif;
 
 new Taxnexcy_FF_PDF_Attach();
+
+// Replace dynamic tokens in Fluent Forms PDF HTML output so labels display
+// submitted values (e.g. selected tax year and user's first name).
+add_filter(
+    'fluentform/pdf_html_output',
+    function ( $html, $form, $entry ) {
+        if ( empty( $entry ) || empty( $entry->response ) ) {
+            return $html;
+        }
+
+        $responses = is_array( $entry->response ) ? $entry->response : json_decode( $entry->response, true );
+        if ( ! is_array( $responses ) ) {
+            return $html;
+        }
+
+        // Extract submitted values.
+        $tax_year = ! empty( $responses['input_radio'] ) ? esc_html( $responses['input_radio'] ) : '';
+        $first_name = '';
+        if ( ! empty( $responses['first_name'] ) ) {
+            $first_name = esc_html( $responses['first_name'] );
+        } elseif ( ! empty( $responses['name'] ) ) {
+            // Single "name" field fallback.
+            $first_name = esc_html( $responses['name'] );
+        }
+
+        // Replace full sentences with dynamic values.
+        $html = str_replace(
+            'Have you stayed in Cyprus for more than 183 days during {dynamic.input_radio} ?',
+            'Have you stayed in Cyprus for more than 183 days during ' . $tax_year . ' ?',
+            $html
+        );
+
+        $html = str_replace(
+            'Hi {user.first_name}! Please choose a tax year',
+            'Hi ' . $first_name . '! Please choose a tax year',
+            $html
+        );
+
+        // Replace remaining placeholders.
+        if ( $tax_year ) {
+            $html = str_replace( '{dynamic.input_radio}', $tax_year, $html );
+        }
+        if ( $first_name ) {
+            $html = str_replace( '{user.first_name}', $first_name, $html );
+        }
+
+        return $html;
+    },
+    10,
+    3
+);
 

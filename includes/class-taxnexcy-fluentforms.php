@@ -39,87 +39,34 @@ class Taxnexcy_FluentForms {
     /**
      * Return Fluent Forms’ native HTML for an entry.
      *
-     * @param int   $form_id   Form ID.
-     * @param int   $entry_id  Entry ID.
-     * @param array $form_data Optional submitted form data for smartcode replacement.
+     * @param int $form_id  Form ID.
+     * @param int $entry_id Entry ID.
      * @return string HTML for the rendered entry.
      */
-    private function render_entry_html( $form_id, $entry_id, $form_data = array() ) {
+    private function render_entry_html( $form_id, $entry_id ) {
 
         if ( ! class_exists( '\\FluentForm\\App\\Services\\Submission\\SubmissionService' ) ) {
             return '';
         }
 
         $service = new SubmissionService();
-        $html    = '';
 
         // v6.x – first param is form_id
         if ( method_exists( $service, 'renderSubmission' ) ) {
             try {
-                $html = $service->renderSubmission( $form_id, $entry_id );
+                return $service->renderSubmission( $form_id, $entry_id, 'table' );
             } catch ( \ArgumentCountError $e ) {
                 // v5.x – first param is entry_id
-                $html = $service->renderSubmission( $entry_id );
+                return $service->renderSubmission( $entry_id, 'table' );
             }
-        } elseif ( method_exists( $service, 'renderEntry' ) ) {
-            // very old (<5.0) fallback
-            $html = $service->renderEntry( $entry_id );
         }
 
-        if ( $html && ! empty( $form_data ) ) {
-            $html = preg_replace_callback(
-                '/{([^}]+)}/',
-                function ( $matches ) use ( $form_data ) {
-                    $key = $matches[1];
-
-                    if ( strpos( $key, 'dynamic.' ) === 0 ) {
-                        $key = substr( $key, 8 );
-                    } elseif ( strpos( $key, 'user.' ) === 0 ) {
-                        $key = substr( $key, 5 );
-                    }
-
-                    $value = $form_data[ $key ] ?? '';
-                    if ( is_array( $value ) ) {
-                        $value = wp_json_encode( $value );
-                    }
-
-                    return esc_html( $value );
-                },
-                $html
-            );
+        // very old (<5.0) fallback
+        if ( method_exists( $service, 'renderEntry' ) ) {
+            return $service->renderEntry( $entry_id, 'table' );
         }
 
-        return $html;
-    }
-
-    /**
-     * Replace Fluent Forms smartcodes in a label with submitted values.
-     *
-     * @param string $label     Field label that may contain smartcodes.
-     * @param array  $form_data Submitted form data.
-     * @return string Label with any smartcodes replaced.
-     */
-    private function replace_label_smartcodes( $label, $form_data ) {
-        return preg_replace_callback(
-            '/{([^}]+)}/',
-            function ( $matches ) use ( $form_data ) {
-                $key = $matches[1];
-
-                if ( strpos( $key, 'dynamic.' ) === 0 ) {
-                    $key = substr( $key, 8 );
-                } elseif ( strpos( $key, 'user.' ) === 0 ) {
-                    $key = substr( $key, 5 );
-                }
-
-                $value = $form_data[ $key ] ?? '';
-                if ( is_array( $value ) ) {
-                    $value = wp_json_encode( $value );
-                }
-
-                return sanitize_text_field( $value );
-            },
-            $label
-        );
+        return '';
     }
 
     /**
@@ -270,15 +217,11 @@ class Taxnexcy_FluentForms {
 
             $field_labels = $labels[ $base_key ] ?? '';
             $field_label  = is_array( $field_labels ) ? ( $field_labels['__label'] ?? ucwords( str_replace( '_', ' ', $sanitized_key ) ) ) : ( $field_labels ?: ucwords( str_replace( '_', ' ', $sanitized_key ) ) );
-            $field_label  = $this->replace_label_smartcodes( $field_label, $form_data );
-
-            $field_value  = is_array( $value ) ? wp_json_encode( $value ) : sanitize_text_field( $value );
-            $field_label .= ': ' . $field_value;
 
             $legacy_fields[] = array(
                 'slug'  => $sanitized_key,
                 'label' => $field_label,
-                'value' => $field_value,
+                'value' => is_array( $value ) ? wp_json_encode( $value ) : sanitize_text_field( $value ),
             );
         }
 
@@ -286,9 +229,8 @@ class Taxnexcy_FluentForms {
             WC()->session->set( 'taxnexcy_fields', $legacy_fields );
             WC()->session->set( '_ff_form_id', absint( $form['id'] ?? 0 ) );
             WC()->session->set( '_ff_entry_id', absint( $entry_id ) );
-            WC()->session->set( '_ff_entry_html', $this->render_entry_html( $form['id'], $entry_id, $form_data ) );
+            WC()->session->set( '_ff_entry_html', $this->render_entry_html( $form['id'], $entry_id ) );
             Taxnexcy_Logger::log( 'Stored fields in session: ' . wp_json_encode( $legacy_fields ) );
-            Taxnexcy_Logger::log( 'Updated submission fields: ' . wp_json_encode( $legacy_fields ) );
         }
     }
     /**

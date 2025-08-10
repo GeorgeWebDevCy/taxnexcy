@@ -700,7 +700,10 @@ final class Taxnexcy_FF_PDF_Attach {
             $registered[ $code ] = true;
 
             $callback = function ( $val, $form = null ) use ( $value ) {
-                return is_scalar( $value ) ? (string) $value : '';
+                if ( is_scalar( $value ) && $value !== '' ) {
+                    return (string) $value;
+                }
+                return $val;
             };
 
             $filter = 'fluentform/shortcode_parser_callback_' . $code;
@@ -745,7 +748,7 @@ final class Taxnexcy_FF_PDF_Attach {
                     $item = preg_replace_callback(
                         '/\{\{?([^{}]+)\}?\}/',
                         function ( $matches ) use ( $form ) {
-                            return apply_filters( 'fluentform/shortcode_parser_callback_' . $matches[1], '', $form );
+                            return apply_filters( 'fluentform/shortcode_parser_callback_' . $matches[1], $matches[0], $form );
                         },
                         $item
                     );

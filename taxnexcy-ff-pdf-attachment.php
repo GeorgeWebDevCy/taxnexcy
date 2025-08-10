@@ -30,6 +30,8 @@ final class Taxnexcy_FF_PDF_Attach {
      * @var array
      */
     private $shortcode_callbacks = [];
+    private $current_form_id  = 0;
+    private $current_entry_id = 0;
 
     public function __construct() {
         add_action( 'plugins_loaded', [ $this, 'maybe_boot' ], 20 );
@@ -689,8 +691,10 @@ final class Taxnexcy_FF_PDF_Attach {
      * @return void
      */
     private function register_shortcode_parsers( $form_id, $entry_id ) {
-        $replacements = $this->get_dynamic_replacements( $form_id, $entry_id );
-        $registered   = [];
+        $this->current_form_id  = $form_id;
+        $this->current_entry_id = $entry_id;
+        $replacements           = $this->get_dynamic_replacements( $form_id, $entry_id );
+        $registered             = [];
 
         foreach ( $replacements as $tag => $value ) {
             $code = trim( $tag, '{}' );
@@ -710,6 +714,7 @@ final class Taxnexcy_FF_PDF_Attach {
             add_filter( $filter, $callback, 10, 2 );
             $this->shortcode_callbacks[] = [ $filter, $callback ];
         }
+        add_filter( 'fluentform/pdf_body_parse', [ $this, 'filter_pdf_body_parse' ], 20, 4 );
     }
 
     /**
@@ -723,6 +728,16 @@ final class Taxnexcy_FF_PDF_Attach {
             remove_filter( $filter, $callback, 10 );
         }
         $this->shortcode_callbacks = [];
+        remove_filter( 'fluentform/pdf_body_parse', [ $this, 'filter_pdf_body_parse' ], 20 );
+        $this->current_form_id  = 0;
+        $this->current_entry_id = 0;
+    }
+
+    public function filter_pdf_body_parse( $html, $submission_id, $form_data, $form ) {
+        if ( $this->current_form_id && $this->current_entry_id ) {
+            return $this->replace_dynamic_tags( $html, $this->current_form_id, $this->current_entry_id );
+        }
+        return $html;
     }
 
     /**

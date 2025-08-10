@@ -17,12 +17,19 @@ if ( ! class_exists( 'Taxnexcy_FF_PDF_Attach' ) ) :
 
 final class Taxnexcy_FF_PDF_Attach {
 
-    const VER                 = '1.1.12';
+    const VER                 = '1.1.13';
     const SESSION_KEY         = 'taxnexcy_ff_entry_map';
     const ORDER_META_PDF_PATH = '_ff_entry_pdf';
     const LOG_FILE            = 'taxnexcy-ffpdf.log';
     const TARGET_FORM_ID      = 4;
     const PDF_FEED_ID        = 56; // Your Fluent Forms PDF feed id named "General"
+
+    /**
+     * Registered shortcode callbacks for cleanup.
+     *
+     * @var array
+     */
+    private $shortcode_callbacks = [];
 
     public function __construct() {
         add_action( 'plugins_loaded', [ $this, 'maybe_boot' ], 20 );
@@ -147,6 +154,9 @@ final class Taxnexcy_FF_PDF_Attach {
     function create_pdf_for_entry( $form_id, $entry_id, $order_id ) {
         $this->log( 'Starting PDF generation', [ 'form_id' => $form_id, 'entry_id' => $entry_id, 'order_id' => $order_id ] );
 
+        $this->register_shortcode_parsers( $form_id, $entry_id );
+
+        try {
         // Destination folder
         $upload = wp_upload_dir();
         if ( ! empty( $upload['error'] ) ) {
@@ -464,6 +474,9 @@ final class Taxnexcy_FF_PDF_Attach {
 
         $this->log( 'PDF generation failed in all methods', [ 'form_id' => $form_id, 'entry_id' => $entry_id, 'order_id' => $order_id ] );
         return false;
+        } finally {
+            $this->unregister_shortcode_parsers();
+        }
     }
 
     /* ---------------------------------------
@@ -554,12 +567,17 @@ final class Taxnexcy_FF_PDF_Attach {
     }
 
     /**
-     * Replace dynamic tags and {inputs.*} smartcodes in strings or arrays using submission data.
+     * Build a map of Fluent Forms smartcodes to their values for a given entry.
+     *
+     * @param int $form_id  Form ID.
+     * @param int $entry_id Entry ID.
+     * @return array        Map of `{smartcode}` => value.
      */
-    private function replace_dynamic_tags( $data, $form_id, $entry_id ) {
-        $fields   = [];
-        $user     = null;
-        $user_id  = 0;
+    private function get_dynamic_replacements( $form_id, $entry_id ) {
+        $fields  = [];
+        $user    = null;
+        $user_id = 0;
+
         try {
             if ( function_exists( 'wpFluent' ) ) {
                 $submission = wpFluent()->table( 'fluentform_submissions' )->find( (int) $entry_id );
@@ -660,9 +678,78 @@ final class Taxnexcy_FF_PDF_Attach {
             }
         }
 
-        $apply = function ( &$item ) use ( $replacements ) {
+        return $replacements;
+    }
+
+    /**
+     * Register shortcode parser callbacks so PDF templates can resolve custom tags.
+     *
+     * @param int $form_id
+     * @param int $entry_id
+     * @return void
+     */
+    private function register_shortcode_parsers( $form_id, $entry_id ) {
+        $replacements = $this->get_dynamic_replacements( $form_id, $entry_id );
+        $registered   = [];
+
+        foreach ( $replacements as $tag => $value ) {
+            $code = trim( $tag, '{}' );
+            if ( isset( $registered[ $code ] ) ) {
+                continue;
+            }
+            $registered[ $code ] = true;
+
+            $callback = function ( $val, $form = null ) use ( $value ) {
+                return is_scalar( $value ) ? (string) $value : '';
+            };
+
+            $filter = 'fluentform/shortcode_parser_callback_' . $code;
+            add_filter( $filter, $callback, 10, 2 );
+            $this->shortcode_callbacks[] = [ $filter, $callback ];
+        }
+    }
+
+    /**
+     * Remove registered shortcode parser callbacks.
+     *
+     * @return void
+     */
+    private function unregister_shortcode_parsers() {
+        foreach ( $this->shortcode_callbacks as $item ) {
+            [ $filter, $callback ] = $item;
+            remove_filter( $filter, $callback, 10 );
+        }
+        $this->shortcode_callbacks = [];
+    }
+
+    /**
+     * Replace dynamic tags and custom smartcodes in strings or arrays using submission data.
+     */
+    private function replace_dynamic_tags( $data, $form_id, $entry_id ) {
+        $replacements = $this->get_dynamic_replacements( $form_id, $entry_id );
+
+        $form = null;
+        try {
+            if ( function_exists( 'wpFluent' ) ) {
+                $form = wpFluent()->table( 'fluentform_forms' )->find( (int) $form_id );
+            }
+        } catch ( \Throwable $e ) {
+            // Ignore lookup failures.
+        }
+
+        $apply = function ( &$item ) use ( $replacements, $form ) {
             if ( is_string( $item ) ) {
                 $item = strtr( $item, $replacements );
+
+                if ( strpos( $item, '{' ) !== false ) {
+                    $item = preg_replace_callback(
+                        '/\{\{?([^{}]+)\}?\}/',
+                        function ( $matches ) use ( $form ) {
+                            return apply_filters( 'fluentform/shortcode_parser_callback_' . $matches[1], '', $form );
+                        },
+                        $item
+                    );
+                }
             }
         };
 

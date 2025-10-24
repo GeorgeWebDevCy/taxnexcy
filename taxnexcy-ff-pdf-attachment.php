@@ -21,7 +21,7 @@ final class Taxnexcy_FF_PDF_Attach {
     const SESSION_KEY         = 'taxnexcy_ff_entry_map';
     const ORDER_META_PDF_PATH = '_ff_entry_pdf';
     const LOG_FILE            = 'taxnexcy-ffpdf.log';
-    const TARGET_FORM_ID      = 8;
+    const TARGET_FORM_ID      = 4;
     const PDF_FEED_ID        = 56; // Your Fluent Forms PDF feed id named "General"
 
     /**

@@ -793,7 +793,7 @@ final class Taxnexcy_FF_PDF_Attach {
         }
 
         // Also mirror to Taxnexcy_Logger if available (keeps everything in one place)
-        if ( class_exists( 'Taxnexcy_Logger' ) && method_exists( 'Taxnexcy_Logger', 'log' ) ) {
+        if ( class_exists( 'Taxnexcy_Logger' ) && method_exists( 'Taxnexcy_Logger', 'log' ) && \Taxnexcy_Logger::is_debug_enabled() ) {
             \Taxnexcy_Logger::log( $full_message );
         }
 

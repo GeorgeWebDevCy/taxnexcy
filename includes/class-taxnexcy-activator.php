@@ -31,6 +31,7 @@ class Taxnexcy_Activator {
 	 */
         public static function activate() {
                 if ( class_exists( 'Taxnexcy_Logger' ) ) {
+                        Taxnexcy_Logger::migrate_legacy_storage();
                         Taxnexcy_Logger::log( 'Plugin activated' );
                 }
         }

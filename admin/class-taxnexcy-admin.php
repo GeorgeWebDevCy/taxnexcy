@@ -165,7 +165,7 @@ class Taxnexcy_Admin {
 
                 // Fetch the log lines and render them in a basic table.
                 $logs = Taxnexcy_Logger::get_logs();
-                Taxnexcy_Logger::log( 'Rendering admin log page' );
+                Taxnexcy_Logger::log( 'Rendering admin log page', array( 'entries' => count( $logs ) ) );
                 include plugin_dir_path( __FILE__ ) . 'partials/taxnexcy-log-page.php';
         }
 
@@ -201,7 +201,7 @@ class Taxnexcy_Admin {
                         ) );
                 }
 
-                Taxnexcy_Logger::log( 'Rendering settings page' );
+                Taxnexcy_Logger::log( 'Rendering settings page', array( 'forms' => count( $forms ), 'products' => count( $products ) ) );
                 include plugin_dir_path( __FILE__ ) . 'partials/taxnexcy-settings-page.php';
         }
 

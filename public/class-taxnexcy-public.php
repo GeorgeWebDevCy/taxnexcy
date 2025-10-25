@@ -108,8 +108,10 @@ wp_enqueue_script( $this->plugin_name, plugin_dir_url( __FILE__ ) . 'js/taxnexcy
         * @return array Modified order actions.
         */
        public function remove_my_account_order_actions( $actions, $order ) {
-               $order_id = is_object( $order ) && method_exists( $order, 'get_id' ) ? $order->get_id() : 'unknown';
-               Taxnexcy_Logger::log( 'Removing pay and cancel actions for order ' . $order_id );
+               if ( class_exists( 'Taxnexcy_Logger' ) && Taxnexcy_Logger::is_debug_enabled() ) {
+                       $order_id = is_object( $order ) && method_exists( $order, 'get_id' ) ? $order->get_id() : 'unknown';
+                       Taxnexcy_Logger::log( 'Removing pay and cancel actions for order ' . $order_id );
+               }
                unset( $actions['pay'] );
                unset( $actions['cancel'] );
                return $actions;
@@ -123,9 +125,11 @@ wp_enqueue_script( $this->plugin_name, plugin_dir_url( __FILE__ ) . 'js/taxnexcy
         * @return array
         */
        public function disable_order_pay_button( $statuses, $order ) {
-               $order_id = is_object( $order ) && method_exists( $order, 'get_id' ) ? $order->get_id() : 'unknown';
-               $status   = is_object( $order ) && method_exists( $order, 'get_status' ) ? $order->get_status() : 'unknown';
-               Taxnexcy_Logger::log( 'Disabling pay button for order ' . $order_id . ' with status ' . $status );
+               if ( class_exists( 'Taxnexcy_Logger' ) && Taxnexcy_Logger::is_debug_enabled() ) {
+                       $order_id = is_object( $order ) && method_exists( $order, 'get_id' ) ? $order->get_id() : 'unknown';
+                       $status   = is_object( $order ) && method_exists( $order, 'get_status' ) ? $order->get_status() : 'unknown';
+                       Taxnexcy_Logger::log( 'Disabling pay button for order ' . $order_id . ' with status ' . $status );
+               }
                return array();
        }
 
@@ -137,9 +141,11 @@ wp_enqueue_script( $this->plugin_name, plugin_dir_url( __FILE__ ) . 'js/taxnexcy
         * @return array
         */
        public function disable_order_cancel_button( $statuses, $order ) {
-               $order_id = is_object( $order ) && method_exists( $order, 'get_id' ) ? $order->get_id() : 'unknown';
-               $status   = is_object( $order ) && method_exists( $order, 'get_status' ) ? $order->get_status() : 'unknown';
-               Taxnexcy_Logger::log( 'Disabling cancel button for order ' . $order_id . ' with status ' . $status );
+               if ( class_exists( 'Taxnexcy_Logger' ) && Taxnexcy_Logger::is_debug_enabled() ) {
+                       $order_id = is_object( $order ) && method_exists( $order, 'get_id' ) ? $order->get_id() : 'unknown';
+                       $status   = is_object( $order ) && method_exists( $order, 'get_status' ) ? $order->get_status() : 'unknown';
+                       Taxnexcy_Logger::log( 'Disabling cancel button for order ' . $order_id . ' with status ' . $status );
+               }
                return array();
        }
 
@@ -151,9 +157,13 @@ wp_enqueue_script( $this->plugin_name, plugin_dir_url( __FILE__ ) . 'js/taxnexcy
         */
        public function empty_cart_on_page() {
                if ( function_exists( 'is_page' ) && is_page( 100507 ) && function_exists( 'WC' ) && WC()->cart ) {
-                       Taxnexcy_Logger::log( 'Emptying cart on page 100507. Contents before: ' . wp_json_encode( WC()->cart->get_cart() ) );
+                       if ( class_exists( 'Taxnexcy_Logger' ) && Taxnexcy_Logger::is_debug_enabled() ) {
+                               Taxnexcy_Logger::log( 'Emptying cart on page 100507. Contents before: ' . wp_json_encode( WC()->cart->get_cart() ) );
+                       }
                        WC()->cart->empty_cart();
-                       Taxnexcy_Logger::log( 'Cart emptied on page 100507' );
+                       if ( class_exists( 'Taxnexcy_Logger' ) && Taxnexcy_Logger::is_debug_enabled() ) {
+                               Taxnexcy_Logger::log( 'Cart emptied on page 100507' );
+                       }
                }
        }
 

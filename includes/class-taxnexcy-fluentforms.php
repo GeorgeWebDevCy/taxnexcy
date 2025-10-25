@@ -23,7 +23,7 @@ class Taxnexcy_FluentForms {
      */
     public function __construct( $version ) {
         $this->version = $version;
-        Taxnexcy_Logger::log( 'Initialising FluentForms integration' );
+        $this->log_debug( 'Initialising FluentForms integration' );
 
         add_action( 'fluentform_submission_inserted', array( $this, 'create_customer' ), 10, 3 );
         add_action( 'woocommerce_email_order_meta', array( $this, 'display_email_entry' ), 10, 4 );
@@ -34,6 +34,20 @@ class Taxnexcy_FluentForms {
         add_filter( 'woocommerce_add_error', array( $this, 'log_woocommerce_error' ) );
         add_action( 'woocommerce_order_status_changed', array( $this, 'log_order_status_change' ), 10, 4 );
         add_action( 'woocommerce_cart_loaded_from_session', array( $this, 'log_cart_loaded_from_session' ) );
+    }
+
+    /**
+     * Conditionally log debug messages when the logger is available and enabled.
+     *
+     * @param string $message Message to record.
+     * @param array  $context Optional context data.
+     *
+     * @return void
+     */
+    private function log_debug( $message, $context = array() ) {
+        if ( class_exists( 'Taxnexcy_Logger' ) && Taxnexcy_Logger::is_debug_enabled() ) {
+            Taxnexcy_Logger::log( $message, $context );
+        }
     }
 
     /**
@@ -77,7 +91,7 @@ class Taxnexcy_FluentForms {
      * @param array $form Form settings.
      */
     public function create_customer( $entry_id, $form_data, $form ) {
-        Taxnexcy_Logger::log( 'Processing submission entry ' . $entry_id );
+        $this->log_debug( 'Processing submission entry ' . $entry_id );
 
         $log_data = $form_data;
         foreach ( $log_data as $key => $value ) {
@@ -87,10 +101,10 @@ class Taxnexcy_FluentForms {
             }
         }
 
-        Taxnexcy_Logger::log( 'Submission data: ' . wp_json_encode( $log_data ) );
-        Taxnexcy_Logger::log( 'Form settings: ' . wp_json_encode( $form ) );
+        $this->log_debug( 'Submission data: ' . wp_json_encode( $log_data ) );
+        $this->log_debug( 'Form settings: ' . wp_json_encode( $form ) );
         if ( ! function_exists( 'wc_create_new_customer' ) ) {
-            Taxnexcy_Logger::log( 'WooCommerce functions unavailable' );
+            $this->log_debug( 'WooCommerce functions unavailable' );
             return;
         }
 
@@ -99,16 +113,16 @@ class Taxnexcy_FluentForms {
         $email      = sanitize_email( $form_data['email'] ?? '' );
 
         if ( ! $email ) {
-            Taxnexcy_Logger::log( 'No email provided, aborting' );
+            $this->log_debug( 'No email provided, aborting' );
             return;
         }
 
         $user_id = email_exists( $email );
-        Taxnexcy_Logger::log( 'Checking for existing user: ' . $email );
+        $this->log_debug( 'Checking for existing user: ' . $email );
 
         if ( ! $user_id ) {
             $password = wp_generate_password();
-            Taxnexcy_Logger::log( 'Creating new user for ' . $email );
+            $this->log_debug( 'Creating new user for ' . $email );
             $user_id  = wc_create_new_customer( $email, '', $password );
 
             if ( ! is_wp_error( $user_id ) ) {
@@ -117,15 +131,15 @@ class Taxnexcy_FluentForms {
                     'first_name' => $first_name,
                     'last_name'  => $last_name,
                 ) );
-                Taxnexcy_Logger::log( 'Created user ID ' . $user_id );
+                $this->log_debug( 'Created user ID ' . $user_id );
             } else {
-                Taxnexcy_Logger::log( 'User creation failed: ' . $user_id->get_error_message() );
+                $this->log_debug( 'User creation failed: ' . $user_id->get_error_message() );
                 $user_id = 0;
             }
         }
 
         if ( ! $user_id ) {
-            Taxnexcy_Logger::log( 'Could not create or find user' );
+            $this->log_debug( 'Could not create or find user' );
             return;
         }
 
@@ -136,7 +150,7 @@ class Taxnexcy_FluentForms {
             if ( function_exists( 'wc_set_customer_auth_cookie' ) ) {
                 wc_set_customer_auth_cookie( $user_id );
             }
-            Taxnexcy_Logger::log( 'Logged in user ' . $user_id );
+            $this->log_debug( 'Logged in user ' . $user_id );
         }
 
         $labels = array();
@@ -230,7 +244,7 @@ class Taxnexcy_FluentForms {
             WC()->session->set( '_ff_form_id', absint( $form['id'] ?? 0 ) );
             WC()->session->set( '_ff_entry_id', absint( $entry_id ) );
             WC()->session->set( '_ff_entry_html', $this->render_entry_html( $form['id'], $entry_id ) );
-            Taxnexcy_Logger::log( 'Stored fields in session: ' . wp_json_encode( $legacy_fields ) );
+            $this->log_debug( 'Stored fields in session: ' . wp_json_encode( $legacy_fields ) );
         }
     }
     /**
@@ -266,7 +280,7 @@ class Taxnexcy_FluentForms {
         WC()->session->set( '_ff_form_id', null );
         WC()->session->set( '_ff_entry_id', null );
         WC()->session->set( '_ff_entry_html', null );
-        Taxnexcy_Logger::log( 'Added session fields to order ' . $order->get_id() );
+        $this->log_debug( 'Added session fields to order ' . $order->get_id() );
     }
 
     /**
@@ -274,7 +288,7 @@ class Taxnexcy_FluentForms {
      */
     public function log_checkout_request() {
         $posted = wc_clean( wp_unslash( $_POST ) );
-        Taxnexcy_Logger::log( 'Checkout process data: ' . wp_json_encode( $posted ) );
+        $this->log_debug( 'Checkout process data: ' . wp_json_encode( $posted ) );
 
         if ( function_exists( 'WC' ) ) {
             if ( WC()->cart ) {
@@ -285,9 +299,9 @@ class Taxnexcy_FluentForms {
                         'quantity'   => $item['quantity'] ?? 0,
                     );
                 }
-                Taxnexcy_Logger::log( 'Cart contents at checkout: ' . wp_json_encode( $cart_contents ) );
+                $this->log_debug( 'Cart contents at checkout: ' . wp_json_encode( $cart_contents ) );
             } else {
-                Taxnexcy_Logger::log( 'Cart unavailable during checkout request.' );
+                $this->log_debug( 'Cart unavailable during checkout request.' );
             }
 
             if ( WC()->session ) {
@@ -296,9 +310,9 @@ class Taxnexcy_FluentForms {
                     '_ff_form_id'     => WC()->session->get( '_ff_form_id' ),
                     '_ff_entry_id'    => WC()->session->get( '_ff_entry_id' ),
                 );
-                Taxnexcy_Logger::log( 'Session snapshot before checkout: ' . wp_json_encode( $session_snapshot ) );
+                $this->log_debug( 'Session snapshot before checkout: ' . wp_json_encode( $session_snapshot ) );
             } else {
-                Taxnexcy_Logger::log( 'Session unavailable during checkout request.' );
+                $this->log_debug( 'Session unavailable during checkout request.' );
             }
         }
     }
@@ -311,7 +325,7 @@ class Taxnexcy_FluentForms {
      * @param WC_Order $order        The order object.
      */
     public function log_checkout_processed( $order_id, $posted_data, $order ) {
-        Taxnexcy_Logger::log( 'Checkout order processed. ID: ' . $order_id . ' Data: ' . wp_json_encode( $posted_data ) );
+        $this->log_debug( 'Checkout order processed. ID: ' . $order_id . ' Data: ' . wp_json_encode( $posted_data ) );
     }
 
     /**
@@ -321,7 +335,7 @@ class Taxnexcy_FluentForms {
      * @return string Unmodified error message.
      */
     public function log_woocommerce_error( $error ) {
-        Taxnexcy_Logger::log( 'WooCommerce error notice: ' . $error );
+        $this->log_debug( 'WooCommerce error notice: ' . $error );
         return $error;
     }
 
@@ -334,7 +348,7 @@ class Taxnexcy_FluentForms {
      * @param WC_Order $order      Order object.
      */
     public function log_order_status_change( $order_id, $old_status, $new_status, $order ) {
-        Taxnexcy_Logger::log( 'Order ' . $order_id . ' status changed from ' . $old_status . ' to ' . $new_status );
+        $this->log_debug( 'Order ' . $order_id . ' status changed from ' . $old_status . ' to ' . $new_status );
     }
 
     /**
@@ -344,7 +358,7 @@ class Taxnexcy_FluentForms {
      */
     public function log_cart_loaded_from_session( $cart ) {
         if ( is_object( $cart ) && method_exists( $cart, 'get_cart' ) ) {
-            Taxnexcy_Logger::log( 'Cart loaded from session: ' . wp_json_encode( $cart->get_cart() ) );
+            $this->log_debug( 'Cart loaded from session: ' . wp_json_encode( $cart->get_cart() ) );
         }
     }
 

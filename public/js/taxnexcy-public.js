@@ -4,8 +4,9 @@
         // Redirect to the payment page if the form response includes a URL.
         $( document ).on( 'fluentform_submission_success', function( event, data, response ) {
             var url = '';
-            if ( response ) {
-                url = response.redirect_to || response.redirect_url || response.redirectTo;
+            var payload = response || data || {};
+            if ( payload ) {
+                url = payload.redirectUrl || payload.redirect_to || payload.redirect_url || payload.redirectTo;
             }
 
             if ( url ) {

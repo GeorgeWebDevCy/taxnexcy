@@ -9,6 +9,7 @@ License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
 Taxnex Cyprus converts FluentForms submissions into WooCommerce customers.
+Requires Fluent Forms 6.0.4 or higher and stores the rendered entry under the `_ff_entry_html` order meta key.
 
 == Description ==
 This plugin integrates FluentForms with WooCommerce to create customers and process payments automatically.
@@ -18,7 +19,8 @@ This plugin integrates FluentForms with WooCommerce to create customers and proc
 2. Activate the plugin through the 'Plugins' menu in WordPress.
 
 == Automatic Updates ==
-Taxnex Cyprus checks for updates on its public GitHub repository, so no authentication token is required.
+Taxnex Cyprus checks for updates on its public GitHub repository, so no
+authentication token is required.
 
 == Changelog ==
 = 1.8.4 =
@@ -65,16 +67,11 @@ Taxnex Cyprus checks for updates on its public GitHub repository, so no authenti
 * Apply form colours and titles to PDF output.
 
 = 1.7.73 =
-* Use Fluent Forms smartcodes for PDF file names and headings.
-* Bump PDF helper to version 1.1.6.
+* Use Fluent Forms smartcodes for PDF metadata and file names.
 
 = 1.7.72 =
-* Set PDF title to "Taxnex TaxisNet Submission for {user.name}".
-* Use Divi theme logo and site colours in generated PDFs.
-
-= 1.7.71 =
-* Generate landscape PDFs with basic colour styling.
-* Replace dynamic tags with actual submission values in generated PDFs.
+* Set PDF title to "Taxnex TaxisNet Submission for {user.name}" and include Divi logo.
+* Apply site colours to generated PDFs.
 
 = 1.7.70 =
 * Store the correct Fluent Forms ID in the WooCommerce session map.
@@ -141,6 +138,7 @@ Taxnex Cyprus checks for updates on its public GitHub repository, so no authenti
 = 1.7.48 =
 * Pass container to GlobalPdfManager to prevent fatal errors during PDF generation.
 * Skip abstract TemplateManager classes.
+
 = 1.7.47 =
 * Log PDF generation and email attachments using the main plugin logger.
 
@@ -151,7 +149,7 @@ Taxnex Cyprus checks for updates on its public GitHub repository, so no authenti
 * Generate a PDF of the Fluent Form entry and attach it to WooCommerce order emails.
 
 = 1.7.44 =
-* Call Fluent Forms' renderer with the correct argument order across versions and drop legacy table fallbacks.
+* Call Fluent Forms' renderer with the correct argument order across versions and remove legacy fallback tables.
 
 = 1.7.43 =
 * Render Fluent Forms entries using their internal renderer for full entry details.
@@ -167,6 +165,10 @@ Taxnex Cyprus checks for updates on its public GitHub repository, so no authenti
 * Avoid fatal errors when WooCommerce is inactive by checking required functions before redirecting to checkout.
 = 1.7.39 =
 * Prevent fatal errors when Fluent Forms' SubmissionService class is missing.
+
+= 1.7.38 =
+* Display Fluent Forms entries using the plugin's renderer inside WooCommerce orders and emails.
+* Require Fluent Forms 6.0.4+ and cache output under the `_ff_entry_html` order meta key.
 
 = 1.7.37 =
 * Exclude additional Fluent Forms internal fields from WooCommerce order details.

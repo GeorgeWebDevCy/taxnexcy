@@ -2,11 +2,32 @@
         'use strict';
 
         // Redirect to the payment page if the form response includes a URL.
-        $( document ).on( 'fluentform_submission_success', function( event, data, response ) {
+        $( document ).on( 'fluentform_submission_success', function( event, data, legacyResponse ) {
             var url = '';
-            var payload = response || data || {};
-            if ( payload ) {
-                url = payload.redirectUrl || payload.redirect_to || payload.redirect_url || payload.redirectTo;
+            var payload = data;
+
+            if ( ! payload && event && event.originalEvent && event.originalEvent.detail ) {
+                payload = event.originalEvent.detail;
+            }
+
+            var response = legacyResponse || ( payload && payload.response );
+
+            if ( response && response.data && response.data.result ) {
+                url = response.data.result.redirectUrl
+                    || response.data.result.redirect_url
+                    || response.data.result.redirect_to
+                    || response.data.result.redirectTo;
+            }
+
+            if ( ! url && response ) {
+                url = response.redirectUrl || response.redirect_to || response.redirect_url || response.redirectTo;
+            }
+
+            if ( ! url && payload && payload.result ) {
+                url = payload.result.redirectUrl
+                    || payload.result.redirect_url
+                    || payload.result.redirect_to
+                    || payload.result.redirectTo;
             }
 
             if ( url ) {

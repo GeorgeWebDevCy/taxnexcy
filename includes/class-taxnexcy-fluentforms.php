@@ -65,22 +65,61 @@ class Taxnexcy_FluentForms {
      */
     public function maybe_adjust_redirect_url( $redirect_url, $entry_id, $form, $form_data ) {
         if ( empty( $redirect_url ) ) {
+            $this->log_debug( 'Redirect adjustment skipped: empty redirect URL', array( 'entry_id' => (int) $entry_id ) );
             return $redirect_url;
         }
 
         if ( ! function_exists( 'WC' ) || ! WC()->cart ) {
+            $this->log_debug( 'Redirect adjustment skipped: WooCommerce cart unavailable', array( 'entry_id' => (int) $entry_id ) );
             return $redirect_url;
         }
 
         $parsed = wp_parse_url( $redirect_url );
         if ( empty( $parsed['query'] ) ) {
+            $this->log_debug(
+                'Redirect adjustment skipped: no query string',
+                array( 'entry_id' => (int) $entry_id, 'redirect_url' => $redirect_url )
+            );
             return $redirect_url;
         }
 
         parse_str( $parsed['query'], $params );
         $product_id = absint( $params['add-to-cart'] ?? $params['add_to_cart'] ?? 0 );
         if ( ! $product_id ) {
+            $this->log_debug(
+                'Redirect adjustment skipped: no add-to-cart parameter',
+                array( 'entry_id' => (int) $entry_id, 'query' => $parsed['query'] )
+            );
             return $redirect_url;
+        }
+
+        $mapped_product_id = apply_filters( 'taxnexcy_product_id', 0, $form, $form_data );
+        if ( $mapped_product_id && $mapped_product_id !== $product_id ) {
+            $this->log_debug(
+                'Redirect adjustment skipped: mapped product mismatch',
+                array(
+                    'mapped_product_id'   => $mapped_product_id,
+                    'redirect_product_id' => $product_id,
+                )
+            );
+            return $redirect_url;
+        }
+
+        $cart_items = WC()->cart->get_cart();
+        if ( ! empty( $cart_items ) ) {
+            $this->log_debug(
+                'Emptying cart before add-to-cart redirect',
+                array(
+                    'product_id' => $product_id,
+                    'items'      => count( $cart_items ),
+                )
+            );
+            WC()->cart->empty_cart();
+        } else {
+            $this->log_debug(
+                'Cart already empty before add-to-cart redirect',
+                array( 'product_id' => $product_id, 'entry_id' => (int) $entry_id )
+            );
         }
 
         $product = function_exists( 'wc_get_product' ) ? wc_get_product( $product_id ) : null;
@@ -90,6 +129,10 @@ class Taxnexcy_FluentForms {
         }
 
         if ( ! $product->is_sold_individually() ) {
+            $this->log_debug(
+                'Product is not sold individually; keeping add-to-cart redirect',
+                array( 'product_id' => $product_id, 'entry_id' => (int) $entry_id )
+            );
             return $redirect_url;
         }
 
@@ -102,6 +145,10 @@ class Taxnexcy_FluentForms {
         }
 
         if ( ! $already_in_cart ) {
+            $this->log_debug(
+                'Product not already in cart; keeping add-to-cart redirect',
+                array( 'product_id' => $product_id, 'entry_id' => (int) $entry_id )
+            );
             return $redirect_url;
         }
 
@@ -349,6 +396,17 @@ class Taxnexcy_FluentForms {
             WC()->session->set( 'taxnexcy_force_gateway', self::FORCED_GATEWAY_ID );
             WC()->session->set( 'chosen_payment_method', self::FORCED_GATEWAY_ID );
             $this->log_debug( 'Stored fields in session: ' . wp_json_encode( $legacy_fields ) );
+            $this->log_debug(
+                'Stored Taxnexcy session flags',
+                array(
+                    'entry_id'    => (int) $entry_id,
+                    'form_id'     => absint( $form['id'] ?? 0 ),
+                    'gateway'     => self::FORCED_GATEWAY_ID,
+                    'field_count' => count( $legacy_fields ),
+                )
+            );
+        } else {
+            $this->log_debug( 'Session unavailable; unable to store Taxnexcy fields', array( 'entry_id' => (int) $entry_id ) );
         }
     }
 
@@ -360,6 +418,7 @@ class Taxnexcy_FluentForms {
      */
     public function force_gateway_selection( $gateways ) {
         if ( ! function_exists( 'WC' ) || ! WC()->session ) {
+            $this->log_debug( 'Gateway forcing skipped: WooCommerce session unavailable' );
             return $gateways;
         }
 
@@ -386,6 +445,8 @@ class Taxnexcy_FluentForms {
      */
     public function add_session_fields_to_order( $order, $data ) {
         if ( ! function_exists( 'WC' ) || ! WC()->session ) {
+            $order_id = is_object( $order ) && method_exists( $order, 'get_id' ) ? $order->get_id() : 0;
+            $this->log_debug( 'Session unavailable during order creation', array( 'order_id' => $order_id ) );
             return;
         }
 
@@ -393,6 +454,16 @@ class Taxnexcy_FluentForms {
         $form_id  = WC()->session->get( '_ff_form_id' );
         $entry_id = WC()->session->get( '_ff_entry_id' );
         $html     = WC()->session->get( '_ff_entry_html' );
+        $this->log_debug(
+            'Preparing order meta from session',
+            array(
+                'order_id'       => $order->get_id(),
+                'form_id'        => (int) $form_id,
+                'entry_id'       => (int) $entry_id,
+                'field_count'    => is_array( $fields ) ? count( $fields ) : 0,
+                'has_entry_html' => ! empty( $html ),
+            )
+        );
 
         if ( $fields ) {
             foreach ( $fields as $field ) {

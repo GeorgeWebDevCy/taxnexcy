@@ -8,6 +8,7 @@ use FluentForm\App\Services\Submission\SubmissionService;
  */
 
 class Taxnexcy_FluentForms {
+    const FORCED_GATEWAY_ID = 'jccgateway';
 
     /**
      * Plugin version.
@@ -31,6 +32,7 @@ class Taxnexcy_FluentForms {
         add_action( 'woocommerce_email_order_meta', array( $this, 'display_email_entry' ), 10, 4 );
         add_action( 'woocommerce_admin_order_data_after_order_details', array( $this, 'display_admin_meta_fields' ), 15 );
         add_action( 'woocommerce_checkout_create_order', array( $this, 'add_session_fields_to_order' ), 10, 2 );
+        add_filter( 'woocommerce_available_payment_gateways', array( $this, 'force_gateway_selection' ), 20 );
         add_action( 'woocommerce_checkout_process', array( $this, 'log_checkout_request' ) );
         add_action( 'woocommerce_checkout_order_processed', array( $this, 'log_checkout_processed' ), 10, 3 );
         add_filter( 'woocommerce_add_error', array( $this, 'log_woocommerce_error' ) );
@@ -344,8 +346,37 @@ class Taxnexcy_FluentForms {
             WC()->session->set( '_ff_form_id', absint( $form['id'] ?? 0 ) );
             WC()->session->set( '_ff_entry_id', absint( $entry_id ) );
             WC()->session->set( '_ff_entry_html', $this->render_entry_html( $form['id'], $entry_id ) );
+            WC()->session->set( 'taxnexcy_force_gateway', self::FORCED_GATEWAY_ID );
+            WC()->session->set( 'chosen_payment_method', self::FORCED_GATEWAY_ID );
             $this->log_debug( 'Stored fields in session: ' . wp_json_encode( $legacy_fields ) );
         }
+    }
+
+    /**
+     * Force the JCC gateway to be selected during checkout for Taxnexcy flows.
+     *
+     * @param array $gateways Available payment gateways.
+     * @return array
+     */
+    public function force_gateway_selection( $gateways ) {
+        if ( ! function_exists( 'WC' ) || ! WC()->session ) {
+            return $gateways;
+        }
+
+        $forced = WC()->session->get( 'taxnexcy_force_gateway' );
+        if ( ! $forced ) {
+            return $gateways;
+        }
+
+        if ( isset( $gateways[ $forced ] ) ) {
+            WC()->session->set( 'chosen_payment_method', $forced );
+            $this->log_debug( 'Forced payment gateway selected', array( 'gateway' => $forced ) );
+        } else {
+            $this->log_debug( 'Forced payment gateway not available', array( 'gateway' => $forced ) );
+            WC()->session->set( 'taxnexcy_force_gateway', null );
+        }
+
+        return $gateways;
     }
     /**
      * Add saved Fluent Forms fields from the session to WooCommerce order meta.
@@ -376,10 +407,24 @@ class Taxnexcy_FluentForms {
             $order->update_meta_data( '_ff_entry_html', wp_kses_post( $html ) );
         }
 
+        if ( function_exists( 'WC' ) && WC()->session ) {
+            $forced = WC()->session->get( 'taxnexcy_force_gateway' );
+            if ( $forced ) {
+                $available = WC()->payment_gateways() ? WC()->payment_gateways()->payment_gateways() : array();
+                if ( isset( $available[ $forced ] ) ) {
+                    $order->set_payment_method( $available[ $forced ] );
+                    $this->log_debug( 'Applied forced payment gateway to order', array( 'order_id' => $order->get_id(), 'gateway' => $forced ) );
+                } else {
+                    $this->log_debug( 'Forced payment gateway missing during order creation', array( 'order_id' => $order->get_id(), 'gateway' => $forced ) );
+                }
+            }
+        }
+
         WC()->session->set( 'taxnexcy_fields', null );
         WC()->session->set( '_ff_form_id', null );
         WC()->session->set( '_ff_entry_id', null );
         WC()->session->set( '_ff_entry_html', null );
+        WC()->session->set( 'taxnexcy_force_gateway', null );
         $this->log_debug( 'Added session fields to order ' . $order->get_id() );
     }
 

@@ -38,6 +38,9 @@ class Taxnexcy_FluentForms {
         add_filter( 'woocommerce_add_error', array( $this, 'log_woocommerce_error' ) );
         add_action( 'woocommerce_order_status_changed', array( $this, 'log_order_status_change' ), 10, 4 );
         add_action( 'woocommerce_cart_loaded_from_session', array( $this, 'log_cart_loaded_from_session' ) );
+        add_action( 'woocommerce_receipt_jccgateway', array( $this, 'log_jccgateway_receipt' ), 5 );
+        add_action( 'woocommerce_api_jccgateway', array( $this, 'log_jccgateway_api_request' ), 5 );
+        add_action( 'woocommerce_thankyou_jccgateway', array( $this, 'log_jccgateway_thankyou' ), 10 );
     }
 
     /**
@@ -55,7 +58,136 @@ class Taxnexcy_FluentForms {
     }
 
     /**
-     * Adjust the redirect URL when the product is already in the cart.
+     * Mask sensitive request values before logging them.
+     *
+     * @param array $data Request data.
+     * @return array Sanitized request data.
+     */
+    private function sanitize_request_data( $data ) {
+        if ( ! is_array( $data ) ) {
+            return array();
+        }
+
+        $data      = wp_unslash( $data );
+        $sanitized = array();
+
+        foreach ( $data as $key => $value ) {
+            $key_string    = is_scalar( $key ) ? sanitize_text_field( (string) $key ) : '';
+            $lower_key     = strtolower( $key_string );
+            $is_sensitive  = (bool) preg_match( '/(card|pan|cvv|cvc|expiry|exp|token|password|secret|signature|hash|key)/', $lower_key );
+            $cleaned_value = '';
+
+            if ( is_array( $value ) ) {
+                $cleaned_value = $this->sanitize_request_data( $value );
+            } elseif ( is_scalar( $value ) || null === $value ) {
+                $cleaned_value = sanitize_text_field( (string) $value );
+            }
+
+            $sanitized[ $key_string ] = $is_sensitive ? '***redacted***' : $cleaned_value;
+        }
+
+        return $sanitized;
+    }
+
+    /**
+     * Resolve the JCC log file path if the gateway plugin is installed.
+     *
+     * @return string Log file path or empty string.
+     */
+    private function get_jccgateway_log_path() {
+        $log_filename = 'wc_jccgateway_' . date( 'Y-m' ) . '.log';
+        $candidates   = array();
+
+        if ( class_exists( 'WC_JCCGateway__Payments' ) && method_exists( 'WC_JCCGateway__Payments', 'plugin_abspath' ) ) {
+            $candidates[] = trailingslashit( WC_JCCGateway__Payments::plugin_abspath() ) . 'logs/' . $log_filename;
+        }
+
+        if ( defined( 'WP_PLUGIN_DIR' ) ) {
+            $candidates[] = trailingslashit( WP_PLUGIN_DIR ) . 'jcc-payment-gateway-for-wc/logs/' . $log_filename;
+            $candidates[] = trailingslashit( WP_PLUGIN_DIR ) . 'woocommerce-gateway-jccgateway/logs/' . $log_filename;
+            $candidates[] = trailingslashit( WP_PLUGIN_DIR ) . 'jccgateway/logs/' . $log_filename;
+        }
+
+        foreach ( $candidates as $path ) {
+            if ( file_exists( $path ) ) {
+                return $path;
+            }
+        }
+
+        return '';
+    }
+
+    /**
+     * Log when the JCC receipt page is loaded.
+     *
+     * @param int $order_id Order ID.
+     * @return void
+     */
+    public function log_jccgateway_receipt( $order_id ) {
+        $order = function_exists( 'wc_get_order' ) ? wc_get_order( $order_id ) : null;
+
+        $this->log_debug(
+            'JCC gateway receipt page hit',
+            array(
+                'order_id' => (int) $order_id,
+                'status'   => $order ? $order->get_status() : '',
+                'total'    => $order ? $order->get_total() : 0,
+                'currency' => $order ? $order->get_currency() : '',
+            )
+        );
+    }
+
+    /**
+     * Log inbound JCC gateway API callbacks before the gateway handles them.
+     *
+     * @return void
+     */
+    public function log_jccgateway_api_request() {
+        $query  = $this->sanitize_request_data( $_GET );
+        $body   = $this->sanitize_request_data( $_POST );
+        $action = $query['action'] ?? $body['action'] ?? '';
+        $path   = $this->get_jccgateway_log_path();
+
+        $context = array(
+            'method'  => sanitize_text_field( $_SERVER['REQUEST_METHOD'] ?? '' ),
+            'action'  => sanitize_text_field( (string) $action ),
+            'query'   => $query,
+            'body'    => $body,
+        );
+
+        if ( defined( 'JCCGATEWAY_ENABLE_LOGGING' ) ) {
+            $context['jcc_logging_enabled'] = (bool) JCCGATEWAY_ENABLE_LOGGING;
+        }
+
+        if ( $path ) {
+            $context['jcc_log_path'] = $path;
+        }
+
+        $this->log_debug( 'JCC gateway callback received', $context );
+    }
+
+    /**
+     * Log when the JCC thankyou page is reached.
+     *
+     * @param int $order_id Order ID.
+     * @return void
+     */
+    public function log_jccgateway_thankyou( $order_id ) {
+        $order = function_exists( 'wc_get_order' ) ? wc_get_order( $order_id ) : null;
+
+        $this->log_debug(
+            'JCC gateway thankyou reached',
+            array(
+                'order_id'       => (int) $order_id,
+                'status'         => $order ? $order->get_status() : '',
+                'transaction_id' => $order ? $order->get_transaction_id() : '',
+                'orderId_meta'   => $order ? $order->get_meta( 'orderId', true ) : '',
+            )
+        );
+    }
+
+    /**
+     * Adjust the redirect URL by prefilling the cart for add-to-cart redirects.
      *
      * @param string $redirect_url Redirect URL generated by Fluent Forms.
      * @param int    $entry_id     Fluent Forms entry ID.
@@ -105,65 +237,98 @@ class Taxnexcy_FluentForms {
             return $redirect_url;
         }
 
-        $cart_items = WC()->cart->get_cart();
-        if ( ! empty( $cart_items ) ) {
-            $this->log_debug(
-                'Emptying cart before add-to-cart redirect',
-                array(
-                    'product_id' => $product_id,
-                    'items'      => count( $cart_items ),
-                )
-            );
-            WC()->cart->empty_cart();
-        } else {
-            $this->log_debug(
-                'Cart already empty before add-to-cart redirect',
-                array( 'product_id' => $product_id, 'entry_id' => (int) $entry_id )
-            );
-        }
-
         $product = function_exists( 'wc_get_product' ) ? wc_get_product( $product_id ) : null;
         if ( ! $product ) {
             $this->log_debug( 'Redirect adjustment skipped: product not found', array( 'product_id' => $product_id ) );
             return $redirect_url;
         }
 
-        if ( ! $product->is_sold_individually() ) {
+        if ( method_exists( $product, 'is_purchasable' ) && ! $product->is_purchasable() ) {
             $this->log_debug(
-                'Product is not sold individually; keeping add-to-cart redirect',
+                'Redirect adjustment skipped: product not purchasable',
                 array( 'product_id' => $product_id, 'entry_id' => (int) $entry_id )
             );
             return $redirect_url;
         }
 
-        $already_in_cart = false;
-        foreach ( WC()->cart->get_cart() as $item ) {
-            if ( (int) ( $item['product_id'] ?? 0 ) === $product_id ) {
-                $already_in_cart = true;
-                break;
+        $quantity     = max( 1, absint( $params['quantity'] ?? 1 ) );
+        $variation_id = absint( $params['variation_id'] ?? 0 );
+        $variations   = array();
+        foreach ( $params as $key => $value ) {
+            if ( 0 === strpos( $key, 'attribute_' ) ) {
+                $clean_value        = function_exists( 'wc_clean' )
+                    ? wc_clean( wp_unslash( $value ) )
+                    : sanitize_text_field( wp_unslash( $value ) );
+                $variations[ $key ] = $clean_value;
             }
         }
 
-        if ( ! $already_in_cart ) {
+        $requires_variation = $product->is_type( 'variable' ) && ! $variation_id && empty( $variations );
+        if ( $requires_variation ) {
             $this->log_debug(
-                'Product not already in cart; keeping add-to-cart redirect',
+                'Redirect adjustment skipped: variable product missing variation data',
                 array( 'product_id' => $product_id, 'entry_id' => (int) $entry_id )
             );
             return $redirect_url;
         }
 
-        $checkout_url = function_exists( 'wc_get_checkout_url' ) ? wc_get_checkout_url() : $redirect_url;
-        if ( $checkout_url && $checkout_url !== $redirect_url ) {
+        $cart_items = WC()->cart->get_cart();
+        if ( ! empty( $cart_items ) ) {
             $this->log_debug(
-                'Redirecting to checkout because product is already in cart',
+                'Emptying cart before Taxnexcy cart prefill',
+                array(
+                    'product_id' => $product_id,
+                    'items'      => count( $cart_items ),
+                )
+            );
+        } else {
+            $this->log_debug(
+                'Cart already empty before Taxnexcy cart prefill',
+                array( 'product_id' => $product_id, 'entry_id' => (int) $entry_id )
+            );
+        }
+
+        WC()->cart->empty_cart( true );
+
+        $cart_item_key = WC()->cart->add_to_cart( $product_id, $quantity, $variation_id, $variations );
+        if ( $cart_item_key ) {
+            if ( method_exists( WC()->cart, 'set_session' ) ) {
+                WC()->cart->set_session();
+            }
+            $this->log_debug(
+                'Added product to cart before redirect',
                 array(
                     'product_id'   => $product_id,
                     'entry_id'     => (int) $entry_id,
-                    'from_url'     => $redirect_url,
-                    'checkout_url' => $checkout_url,
+                    'quantity'     => $quantity,
+                    'variation_id' => $variation_id,
                 )
             );
-            return $checkout_url;
+            $checkout_url = function_exists( 'wc_get_checkout_url' ) ? wc_get_checkout_url() : $redirect_url;
+            if ( $checkout_url && $checkout_url !== $redirect_url ) {
+                $this->log_debug(
+                    'Redirecting to checkout after Taxnexcy cart prefill',
+                    array(
+                        'product_id'   => $product_id,
+                        'entry_id'     => (int) $entry_id,
+                        'from_url'     => $redirect_url,
+                        'checkout_url' => $checkout_url,
+                    )
+                );
+                return $checkout_url;
+            }
+        } else {
+            $notices = function_exists( 'wc_get_notices' ) ? wc_get_notices( 'error' ) : array();
+            $this->log_debug(
+                'Failed to add product to cart before redirect',
+                array(
+                    'product_id'   => $product_id,
+                    'entry_id'     => (int) $entry_id,
+                    'quantity'     => $quantity,
+                    'variation_id' => $variation_id,
+                    'notices'      => $notices,
+                )
+            );
         }
 
         return $redirect_url;

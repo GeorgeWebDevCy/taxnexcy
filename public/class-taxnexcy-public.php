@@ -125,12 +125,16 @@ wp_enqueue_script( $this->plugin_name, plugin_dir_url( __FILE__ ) . 'js/taxnexcy
         * @return array
         */
        public function disable_order_pay_button( $statuses, $order ) {
-               if ( class_exists( 'Taxnexcy_Logger' ) && Taxnexcy_Logger::is_debug_enabled() ) {
-                       $order_id = is_object( $order ) && method_exists( $order, 'get_id' ) ? $order->get_id() : 'unknown';
-                       $status   = is_object( $order ) && method_exists( $order, 'get_status' ) ? $order->get_status() : 'unknown';
-                       Taxnexcy_Logger::log( 'Disabling pay button for order ' . $order_id . ' with status ' . $status );
+               if ( function_exists( 'is_account_page' ) && is_account_page() ) {
+                       if ( class_exists( 'Taxnexcy_Logger' ) && Taxnexcy_Logger::is_debug_enabled() ) {
+                               $order_id = is_object( $order ) && method_exists( $order, 'get_id' ) ? $order->get_id() : 'unknown';
+                               $status   = is_object( $order ) && method_exists( $order, 'get_status' ) ? $order->get_status() : 'unknown';
+                               Taxnexcy_Logger::log( 'Disabling pay button for order ' . $order_id . ' with status ' . $status );
+                       }
+                       return array();
                }
-               return array();
+
+               return $statuses;
        }
 
        /**
@@ -141,12 +145,16 @@ wp_enqueue_script( $this->plugin_name, plugin_dir_url( __FILE__ ) . 'js/taxnexcy
         * @return array
         */
        public function disable_order_cancel_button( $statuses, $order ) {
-               if ( class_exists( 'Taxnexcy_Logger' ) && Taxnexcy_Logger::is_debug_enabled() ) {
-                       $order_id = is_object( $order ) && method_exists( $order, 'get_id' ) ? $order->get_id() : 'unknown';
-                       $status   = is_object( $order ) && method_exists( $order, 'get_status' ) ? $order->get_status() : 'unknown';
-                       Taxnexcy_Logger::log( 'Disabling cancel button for order ' . $order_id . ' with status ' . $status );
+               if ( function_exists( 'is_account_page' ) && is_account_page() ) {
+                       if ( class_exists( 'Taxnexcy_Logger' ) && Taxnexcy_Logger::is_debug_enabled() ) {
+                               $order_id = is_object( $order ) && method_exists( $order, 'get_id' ) ? $order->get_id() : 'unknown';
+                               $status   = is_object( $order ) && method_exists( $order, 'get_status' ) ? $order->get_status() : 'unknown';
+                               Taxnexcy_Logger::log( 'Disabling cancel button for order ' . $order_id . ' with status ' . $status );
+                       }
+                       return array();
                }
-               return array();
+
+               return $statuses;
        }
 
        /**

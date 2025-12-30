@@ -82,16 +82,32 @@ require_once plugin_dir_path( __FILE__ ) . 'includes/class-taxnexcy-logger.php';
 require plugin_dir_path( __FILE__ ) . 'includes/class-taxnexcy.php';
 
 // Load the plugin update checker and configure updates from GitHub.
-require_once plugin_dir_path( __FILE__ ) . 'plugin-update-checker/plugin-update-checker/plugin-update-checker.php';
-use YahnisElsts\PluginUpdateChecker\v5\PucFactory;
+$taxnexcy_puc_loaded = false;
+$taxnexcy_autoload   = plugin_dir_path( __FILE__ ) . 'vendor/autoload.php';
+if ( file_exists( $taxnexcy_autoload ) ) {
+    require_once $taxnexcy_autoload;
+    $taxnexcy_puc_loaded = class_exists( 'YahnisElsts\\PluginUpdateChecker\\v5\\PucFactory' );
+}
 
-$taxnexcy_update_checker = PucFactory::buildUpdateChecker(
-    'https://github.com/GeorgeWebDevCy/taxnexcy/',
-    __FILE__,
-    'taxnexcy'
-);
-$taxnexcy_update_checker->setBranch('main');
-$taxnexcy_update_checker->getVcsApi()->enableReleaseAssets();
+if ( ! $taxnexcy_puc_loaded ) {
+    $taxnexcy_puc_file = plugin_dir_path( __FILE__ ) . 'plugin-update-checker/plugin-update-checker.php';
+    if ( file_exists( $taxnexcy_puc_file ) ) {
+        require_once $taxnexcy_puc_file;
+        $taxnexcy_puc_loaded = class_exists( 'YahnisElsts\\PluginUpdateChecker\\v5\\PucFactory' );
+    }
+}
+
+if ( $taxnexcy_puc_loaded ) {
+    $taxnexcy_update_checker = YahnisElsts\PluginUpdateChecker\v5\PucFactory::buildUpdateChecker(
+        'https://github.com/GeorgeWebDevCy/taxnexcy/',
+        __FILE__,
+        'taxnexcy'
+    );
+    $taxnexcy_update_checker->setBranch( 'main' );
+    $taxnexcy_update_checker->getVcsApi()->enableReleaseAssets( '/\\.zip($|[?&#])/i' );
+} elseif ( class_exists( 'Taxnexcy_Logger' ) && Taxnexcy_Logger::is_debug_enabled() ) {
+    Taxnexcy_Logger::log( 'Plugin update checker could not be loaded.' );
+}
 
 /**
  * Resolve product ID for a given Fluent Forms submission.

@@ -65,6 +65,19 @@
                 </tr>
             </tbody>
         </table>
+        <h2><?php esc_html_e( 'Debug Logging', 'taxnexcy' ); ?></h2>
+        <p class="description">
+            <?php esc_html_e( 'Enable this to write Taxnexcy debug logs to wp-content/uploads/taxnexcy/taxnexcy-debug.log.', 'taxnexcy' ); ?>
+        </p>
+        <label>
+            <input type="checkbox" name="taxnexcy_debug_enabled" value="1" <?php checked( $debug_option ); ?> />
+            <?php esc_html_e( 'Enable debug logging', 'taxnexcy' ); ?>
+        </label>
+        <?php if ( $debug_constant ) : ?>
+            <p class="description">
+                <?php esc_html_e( 'Note: TAXNEXCY_DEBUG is defined in wp-config.php and will override this setting.', 'taxnexcy' ); ?>
+            </p>
+        <?php endif; ?>
         <p><button type="submit" class="button button-primary"><?php esc_html_e( 'Save Mappings', 'taxnexcy' ); ?></button></p>
     </form>
 </div>

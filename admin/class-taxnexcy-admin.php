@@ -179,6 +179,8 @@ class Taxnexcy_Admin {
 
                 // Retrieve any existing form to product mappings from the database.
                 $mappings = get_option( TAXNEXCY_FORM_PRODUCTS_OPTION, array() );
+                $debug_option   = (bool) get_option( Taxnexcy_Logger::DEBUG_OPTION_KEY, false );
+                $debug_constant = defined( 'TAXNEXCY_DEBUG' );
 
                 $forms = array();
                 if ( class_exists( '\\FluentForm\\App\\Models\\Form' ) ) {
@@ -237,6 +239,7 @@ class Taxnexcy_Admin {
 
                 $forms    = isset( $_POST['taxnexcy_forms'] ) ? array_map( 'intval', (array) $_POST['taxnexcy_forms'] ) : array();
                 $products = isset( $_POST['taxnexcy_products'] ) ? array_map( 'intval', (array) $_POST['taxnexcy_products'] ) : array();
+                $debug_enabled = ! empty( $_POST['taxnexcy_debug_enabled'] ) ? 1 : 0;
 
                 // Build an associative array of form ID => product ID pairs.
                 $mappings = array();
@@ -248,8 +251,10 @@ class Taxnexcy_Admin {
                 }
 
                 update_option( TAXNEXCY_FORM_PRODUCTS_OPTION, $mappings );
+                update_option( Taxnexcy_Logger::DEBUG_OPTION_KEY, $debug_enabled );
 
                 Taxnexcy_Logger::log( 'Saved form/product mappings', array( 'mappings' => $mappings, 'user_id' => get_current_user_id() ) );
+                Taxnexcy_Logger::log( 'Updated debug logging setting', array( 'enabled' => (bool) $debug_enabled, 'user_id' => get_current_user_id() ) );
 
                 wp_redirect( admin_url( 'admin.php?page=taxnexcy' ) );
                 exit;
